@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .bridge-btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 
+           text-sm font-medium text-white 
+           bg-gradient-to-r from-bridge-primary to-bridge-secondary 
+           rounded-lg shadow-lg 
+           hover:shadow-xl hover:scale-105 
+           transition-all duration-200 ease-out
+           focus:outline-none focus:ring-2 focus:ring-bridge-primary focus:ring-offset-2;
+  }
+
+  .bridge-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           text-sm font-medium text-bridge-primary
+           bg-transparent border border-bridge-primary/30
+           rounded-lg
+           hover:bg-bridge-primary/10 hover:border-bridge-primary
+           transition-all duration-200 ease-out
+           focus:outline-none focus:ring-2 focus:ring-bridge-primary focus:ring-offset-2;
+  }
+
+  .bridge-overlay {
+    @apply fixed inset-0 z-[999999] 
+           flex items-center justify-center 
+           bg-black/60 backdrop-blur-sm 
+           animate-fade-in;
+  }
+
+  .bridge-modal {
+    @apply bg-white dark:bg-gray-900 
+           rounded-2xl shadow-2xl 
+           p-6 max-w-md w-full mx-4
+           animate-slide-up
+           border border-gray-200 dark:border-gray-700;
+  }
+
+  .bridge-card {
+    @apply p-4 rounded-xl 
+           bg-gradient-to-br from-gray-50 to-gray-100 
+           dark:from-gray-800 dark:to-gray-900
+           border border-gray-200 dark:border-gray-700
+           hover:shadow-lg transition-shadow duration-200;
+  }
+}
