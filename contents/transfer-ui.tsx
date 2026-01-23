@@ -171,8 +171,8 @@ function TransferUI() {
                         const success = await adapter.injectPrompt(payload.formattedPrompt);
 
                         if (success) {
-                            // Show clipboard paste instruction for all platforms
-                            showToast('📋 Context copied! Press ⌘+V or Ctrl+V to paste', 'info');
+                            // Clipboard has the content - user needs to paste
+                            showToast('📋 Ready! Press ⌘+V (Mac) or Ctrl+V to paste', 'success');
                             await clearContextPayload();
                         } else {
                             showToast('Failed to inject context', 'error');
@@ -230,9 +230,19 @@ function TransferUI() {
             await saveContextPayload(payload);
 
             // Open destination tab via background script
+            console.log('[BridgeAI] Sending OPEN_DESTINATION_TAB message:', destination.id);
+
             chrome.runtime.sendMessage(
                 { type: 'OPEN_DESTINATION_TAB', destinationPlatform: destination.id },
                 (response) => {
+                    // Check for chrome.runtime.lastError first
+                    if (chrome.runtime.lastError) {
+                        console.error('[BridgeAI] Runtime error:', chrome.runtime.lastError.message);
+                        showToast('Extension error: ' + chrome.runtime.lastError.message, 'error');
+                        return;
+                    }
+
+                    console.log('[BridgeAI] Got response:', response);
                     if (response?.success) {
                         showToast(`Opening ${destination.name}...`, 'info');
                     } else {

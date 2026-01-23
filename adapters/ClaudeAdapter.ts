@@ -79,18 +79,17 @@ export class ClaudeAdapter implements AIAdapter {
         const input = this.getInputElement();
 
         try {
-            // Copy to clipboard - reliable approach
+            // Copy to clipboard - most reliable method
             await navigator.clipboard.writeText(text);
             console.log('[BridgeAI] Context copied to clipboard');
 
-            // Focus the input field so user can immediately paste
+            // Focus the input so user can immediately paste
             if (input) {
                 input.focus();
                 input.click();
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
 
-            // Return true - clipboard copy succeeded
             return true;
         } catch (error) {
             console.error('[BridgeAI] Failed to copy to clipboard:', error);

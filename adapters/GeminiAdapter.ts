@@ -105,18 +105,18 @@ export class GeminiAdapter implements AIAdapter {
         const input = this.getInputElement();
 
         try {
-            // Copy to clipboard - this is the only reliable way for Gemini
+            // Copy to clipboard - this is the only reliable method for Gemini
             await navigator.clipboard.writeText(text);
             console.log('[BridgeAI] Context copied to clipboard');
 
-            // Focus the input field so user can immediately paste
+            // Focus the input so user can immediately paste
             if (input) {
                 input.focus();
                 input.click();
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
 
-            // Return true - clipboard copy succeeded
+            // Return true - clipboard has the content
             return true;
         } catch (error) {
             console.error('[BridgeAI] Failed to copy to clipboard:', error);

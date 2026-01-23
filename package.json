@@ -33,7 +33,9 @@
     ],
     "permissions": [
       "storage",
-      "tabs"
+      "tabs",
+      "alarms",
+      "clipboardWrite"
     ]
   }
 }
