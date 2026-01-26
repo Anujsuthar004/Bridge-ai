@@ -9,17 +9,16 @@ export class ClaudeAdapter implements AIAdapter {
     readonly platformId = 'claude';
     readonly newChatUrl = 'https://claude.ai/new';
 
-    // DOM Selectors (updated for 2026)
+    // DOM Selectors (updated for Claude 2026)
     private readonly selectors = {
-        messageContainer: '[data-testid="chat-message"]',
-        userMessage: '[data-testid="user-message"]',
-        assistantMessage: '[data-testid="assistant-message"]',
-        inputTextarea: '[data-testid="prompt-input"], [contenteditable="true"]',
+        // Claude uses these classes/attributes for messages
+        userMessage: '[data-testid="user-message"], .font-user-message, [data-is-human-message="true"]',
+        assistantMessage: '[data-testid="assistant-message"], .font-claude-message, [data-is-human-message="false"]',
+        inputTextarea: '[data-testid="prompt-input"], [contenteditable="true"], .ProseMirror',
         sendButton: '[data-testid="send-button"], button[aria-label="Send"]',
-        conversationContainer: '[data-testid="conversation"]',
-        // Fallback selectors
-        fallbackMessages: '.prose',
-        fallbackInput: 'div[contenteditable="true"]',
+        // Broader fallback selectors
+        conversationTurn: '[data-testid^="chat-message"], .group\\/turn, [class*="turn"], [class*="message"]',
+        fallbackMessages: '.prose, .whitespace-pre-wrap, [class*="MessageContent"]',
     };
 
     isDetected(): boolean {
@@ -29,39 +28,110 @@ export class ClaudeAdapter implements AIAdapter {
     scrapeMessages(): Message[] {
         const messages: Message[] = [];
 
-        // Try primary selectors
-        let messageElements = document.querySelectorAll(this.selectors.messageContainer);
+        // Strategy 1: Try user and assistant message selectors separately
+        const userMessages = document.querySelectorAll(this.selectors.userMessage);
+        const assistantMessages = document.querySelectorAll(this.selectors.assistantMessage);
 
-        // Fallback to prose elements if primary fails
-        if (messageElements.length === 0) {
-            messageElements = document.querySelectorAll(this.selectors.fallbackMessages);
+        console.log('[BridgeAI] Claude - Found user messages:', userMessages.length);
+        console.log('[BridgeAI] Claude - Found assistant messages:', assistantMessages.length);
+
+        if (userMessages.length > 0 || assistantMessages.length > 0) {
+            // Collect all messages with their positions in the DOM
+            const allMessages: { element: Element; isUser: boolean; position: number }[] = [];
+
+            userMessages.forEach((el) => {
+                allMessages.push({
+                    element: el,
+                    isUser: true,
+                    position: this.getElementPosition(el),
+                });
+            });
+
+            assistantMessages.forEach((el) => {
+                allMessages.push({
+                    element: el,
+                    isUser: false,
+                    position: this.getElementPosition(el),
+                });
+            });
+
+            // Sort by position in DOM
+            allMessages.sort((a, b) => a.position - b.position);
+
+            allMessages.forEach(({ element, isUser }) => {
+                const content = element.textContent?.trim() || '';
+                if (content && content.length > 0) {
+                    messages.push({
+                        role: isUser ? 'user' : 'assistant',
+                        content,
+                        timestamp: Date.now(),
+                    });
+                }
+            });
+
+            if (messages.length > 0) {
+                console.log('[BridgeAI] Claude - Scraped', messages.length, 'messages via specific selectors');
+                return messages;
+            }
         }
 
-        // Claude typically alternates user/assistant messages
-        messageElements.forEach((element, index) => {
-            const isUser = element.getAttribute('data-testid')?.includes('user') ||
-                element.closest('[data-is-human-message]') !== null ||
-                index % 2 === 0;
+        // Strategy 2: Try conversation turn selectors
+        const turns = document.querySelectorAll(this.selectors.conversationTurn);
+        console.log('[BridgeAI] Claude - Found conversation turns:', turns.length);
 
+        if (turns.length > 0) {
+            turns.forEach((turn, index) => {
+                const content = turn.textContent?.trim() || '';
+                // Determine role from attributes or alternate
+                const isHuman = turn.getAttribute('data-is-human-message') === 'true' ||
+                    turn.querySelector('[data-is-human-message="true"]') !== null ||
+                    index % 2 === 0;
+
+                if (content && content.length > 0) {
+                    messages.push({
+                        role: isHuman ? 'user' : 'assistant',
+                        content,
+                        timestamp: Date.now(),
+                    });
+                }
+            });
+
+            if (messages.length > 0) {
+                console.log('[BridgeAI] Claude - Scraped', messages.length, 'messages via turns');
+                return messages;
+            }
+        }
+
+        // Strategy 3: Fallback to prose elements
+        const proseElements = document.querySelectorAll(this.selectors.fallbackMessages);
+        console.log('[BridgeAI] Claude - Found fallback elements:', proseElements.length);
+
+        proseElements.forEach((element, index) => {
             const content = element.textContent?.trim() || '';
-
-            if (content) {
+            if (content && content.length > 10) { // Filter out very short/empty elements
                 messages.push({
-                    role: isUser ? 'user' : 'assistant',
+                    role: index % 2 === 0 ? 'user' : 'assistant',
                     content,
                     timestamp: Date.now(),
                 });
             }
         });
 
+        console.log('[BridgeAI] Claude - Final scraped messages:', messages.length);
         return messages;
+    }
+
+    // Helper to get element position in DOM for sorting
+    private getElementPosition(element: Element): number {
+        const rect = element.getBoundingClientRect();
+        return rect.top + window.scrollY;
     }
 
     getInputElement(): HTMLElement | null {
         // Try multiple selectors
         const selectors = [
             this.selectors.inputTextarea,
-            this.selectors.fallbackInput,
+            'div[contenteditable="true"]',
             'textarea',
         ];
 
