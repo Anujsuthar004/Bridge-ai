@@ -1,33 +1,133 @@
-This is a [Plasmo extension](https://docs.plasmo.com/) project bootstrapped with [`plasmo init`](https://www.npmjs.com/package/plasmo).
+# 🌉 BridgeAI
 
-## Getting Started
+**Cross-platform context transfer for AI chatbots**
 
-First, run the development server:
+Transfer your conversations between ChatGPT, Claude, and Gemini with one click.
+
+![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript)
+
+---
+
+## ✨ Features
+
+- **One-Click Transfer** - Move conversations between AI platforms instantly
+- **Smart Context Extraction** - Captures the last 10 messages with proper formatting
+- **Cross-Platform Support** - Works with ChatGPT, Claude, and Gemini
+- **Privacy First** - All processing happens locally in your browser
+- **Auto-Cleanup** - Transferred data expires after 5 minutes
+
+## 🎯 Supported Platforms
+
+| Platform | URL | Status |
+|----------|-----|--------|
+| ChatGPT | chat.openai.com, chatgpt.com | ✅ |
+| Claude | claude.ai | ✅ |
+| Gemini | gemini.google.com | ✅ |
+
+---
+
+## 🚀 Installation
+
+### From Source
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Anujsuthar004/Bridge-ai.git
+   cd Bridge-ai
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Build the extension**
+   ```bash
+   npm run build
+   ```
+
+4. **Load in Chrome**
+   - Open `chrome://extensions`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select the `build/chrome-mv3-prod` folder
+
+---
+
+## 🎮 Usage
+
+1. Open any conversation on ChatGPT, Claude, or Gemini
+2. Click the **Transfer** button (bottom-right corner)
+3. Select your destination platform
+4. Press **⌘+V** (Mac) or **Ctrl+V** (Windows) to paste
+5. Send your message!
+
+---
+
+## 🏗️ Tech Stack
+
+- **Framework**: [Plasmo](https://plasmo.com) - Chrome extension framework
+- **UI**: React 18 + TypeScript
+- **Styling**: Tailwind CSS
+- **Storage**: Chrome Local Storage API
+
+---
+
+## 📁 Project Structure
+
+```
+bridge-ai/
+├── adapters/           # Platform-specific adapters
+│   ├── ChatGPTAdapter.ts
+│   ├── ClaudeAdapter.ts
+│   └── GeminiAdapter.ts
+├── contents/           # Content scripts
+│   └── transfer-ui.tsx
+├── lib/                # Utilities
+│   ├── contextEngine.ts
+│   └── storage.ts
+├── background.ts       # Service worker
+├── popup.tsx           # Extension popup
+└── style.css           # Global styles
+```
+
+---
+
+## 🛠️ Development
 
 ```bash
-pnpm dev
-# or
+# Start development server
 npm run dev
-```
 
-Open your browser and load the appropriate development build. For example, if you are developing for the chrome browser, using manifest v3, use: `build/chrome-mv3-dev`.
-
-You can start editing the popup by modifying `popup.tsx`. It should auto-update as you make changes. To add an options page, simply add a `options.tsx` file to the root of the project, with a react component default exported. Likewise to add a content page, add a `content.ts` file to the root of the project, importing some module and do some logic, then reload the extension on your browser.
-
-For further guidance, [visit our Documentation](https://docs.plasmo.com/)
-
-## Making production build
-
-Run the following:
-
-```bash
-pnpm build
-# or
+# Build for production
 npm run build
+
+# Package for distribution
+npm run package
 ```
 
-This should create a production bundle for your extension, ready to be zipped and published to the stores.
+---
 
-## Submit to the webstores
+## 🔒 Privacy
 
-The easiest way to deploy your Plasmo extension is to use the built-in [bpp](https://bpp.browser.market) GitHub action. Prior to using this action however, make sure to build your extension and upload the first version to the store to establish the basic credentials. Then, simply follow [this setup instruction](https://docs.plasmo.com/framework/workflows/submit) and you should be on your way for automated submission!
+- **No data collection** - Your conversations never leave your browser
+- **No external servers** - All processing is local
+- **Minimal permissions** - Only requests necessary Chrome APIs
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Please open an issue or submit a PR.
+
+---
+
+<p align="center">Made with ❤️ for the AI-powered future</p>
