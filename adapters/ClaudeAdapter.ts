@@ -1,3 +1,4 @@
+import { readMessageText } from '../lib/messageText';
 import type { AIAdapter, Message } from './types';
 
 /**
@@ -59,7 +60,7 @@ export class ClaudeAdapter implements AIAdapter {
             allMessages.sort((a, b) => a.position - b.position);
 
             allMessages.forEach(({ element, isUser }) => {
-                const content = element.textContent?.trim() || '';
+                const content = readMessageText(element);
                 if (content && content.length > 0) {
                     messages.push({
                         role: isUser ? 'user' : 'assistant',
@@ -81,7 +82,7 @@ export class ClaudeAdapter implements AIAdapter {
 
         if (turns.length > 0) {
             turns.forEach((turn, index) => {
-                const content = turn.textContent?.trim() || '';
+                const content = readMessageText(turn);
                 // Determine role from attributes or alternate
                 const isHuman = turn.getAttribute('data-is-human-message') === 'true' ||
                     turn.querySelector('[data-is-human-message="true"]') !== null ||
@@ -107,7 +108,7 @@ export class ClaudeAdapter implements AIAdapter {
         console.log('[BridgeAI] Claude - Found fallback elements:', proseElements.length);
 
         proseElements.forEach((element, index) => {
-            const content = element.textContent?.trim() || '';
+            const content = readMessageText(element);
             if (content && content.length > 10) { // Filter out very short/empty elements
                 messages.push({
                     role: index % 2 === 0 ? 'user' : 'assistant',

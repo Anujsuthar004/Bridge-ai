@@ -1,9 +1,6 @@
-import { useState } from 'react';
 import './style.css';
 
 function IndexPopup() {
-  const [isEnabled, setIsEnabled] = useState(true);
-
   const platforms = [
     { name: 'ChatGPT', url: 'https://chat.openai.com', icon: '🤖', color: '#10a37f' },
     { name: 'Claude', url: 'https://claude.ai', icon: '🧠', color: '#d97706' },
@@ -19,28 +16,13 @@ function IndexPopup() {
         </div>
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-white">BridgeAI</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Context Transfer Tool</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Switch AI. Keep your progress.</p>
         </div>
       </div>
 
-      {/* Status Toggle */}
-      <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm mb-4">
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isEnabled ? 'bg-green-500' : 'bg-gray-400'}`} />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-            {isEnabled ? 'Active' : 'Disabled'}
-          </span>
-        </div>
-        <button
-          onClick={() => setIsEnabled(!isEnabled)}
-          className={`relative w-12 h-6 rounded-full transition-colors ${isEnabled ? 'bg-bridge-primary' : 'bg-gray-300 dark:bg-gray-600'
-            }`}
-        >
-          <div
-            className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transition-transform ${isEnabled ? 'translate-x-7' : 'translate-x-1'
-              }`}
-          />
-        </button>
+      <div className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm mb-4">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Your project memory stays on this device.</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Review, edit, or delete saved projects from the Transfer button in any supported chat.</p>
       </div>
 
       {/* Quick Links */}
@@ -80,14 +62,14 @@ function IndexPopup() {
       <div className="p-3 rounded-xl bg-gradient-to-r from-bridge-primary/10 to-bridge-secondary/10 border border-bridge-primary/20">
         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
           <strong className="text-bridge-primary">How to use:</strong> Open any AI chat above,
-          start a conversation, then click the <strong>"Transfer"</strong> button to move your context
+          start a conversation, then click the <strong>"Transfer · Keep context"</strong> button to move your context
           to another AI platform.
         </p>
       </div>
 
       {/* Footer */}
       <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 text-center">
-        <p className="text-xs text-gray-400">v0.0.1 • Made with ❤️</p>
+        <p className="text-xs text-gray-400">v0.1.0 • Made with ❤️</p>
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+> **v0.1.0 architecture update:** The context-retention release replaces the old 10-message/500-character flow described below. `components/MemoryEditor.tsx` edits explicit local project memory (`lib/projectMemory.ts`, `lib/storage.ts`). `lib/contextEngine.ts` builds a budgeted handoff preserving original requests, pins, and working material in full; it reports omitted recent messages and excludes matching previous handoffs. `lib/messageText.ts` preserves rendered code whitespace and paragraph boundaries. `background.ts` and `lib/pendingTransfers.ts` bind temporary transfers to a destination tab and enforce expiry. `npm test` covers retention, multi-hop transfers, extraction, and storage. See README for current behavior; the historical walkthrough below describes v0.0.1.
+
 # BridgeAI - Technical Deep Dive
 
 ## A Beginner-Friendly Guide to How It Works

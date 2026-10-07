@@ -1,70 +1,17 @@
-import type { Message, ContextPayload } from '~adapters/types';
-
-const STORAGE_KEY = 'bridgeai_context_payload';
-
-/**
- * Save a context payload to chrome.storage.local
- */
-export async function saveContextPayload(payload: ContextPayload): Promise<void> {
-    return new Promise((resolve, reject) => {
-        try {
-            chrome.storage.local.set({ [STORAGE_KEY]: payload }, () => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                } else {
-                    console.log('[BridgeAI] Context payload saved successfully');
-                    resolve();
-                }
-            });
-        } catch (error) {
-            reject(error);
-        }
-    });
+// Store each project separately so saving one project cannot overwrite another.
+const PROJECT_PREFIX = 'bridgeai_project_';
+export async function listProjects(): Promise<import('./projectMemory').ProjectMemory[]> {
+    const items = await chrome.storage.local.get(null);
+    return Object.entries(items)
+        .filter(([key, value]) => key.startsWith(PROJECT_PREFIX) && value?.version === 1)
+        .map(([, value]) => value as import('./projectMemory').ProjectMemory)
+        .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-/**
- * Retrieve the context payload from chrome.storage.local
- */
-export async function getContextPayload(): Promise<ContextPayload | null> {
-    return new Promise((resolve, reject) => {
-        try {
-            chrome.storage.local.get([STORAGE_KEY], (result) => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                } else {
-                    const payload = result[STORAGE_KEY] as ContextPayload | undefined;
-                    resolve(payload || null);
-                }
-            });
-        } catch (error) {
-            reject(error);
-        }
-    });
+export async function saveProject(project: import('./projectMemory').ProjectMemory): Promise<void> {
+    await chrome.storage.local.set({ [PROJECT_PREFIX + project.id]: { ...project, updatedAt: Date.now() } });
 }
 
-/**
- * Clear the context payload from storage
- */
-export async function clearContextPayload(): Promise<void> {
-    return new Promise((resolve, reject) => {
-        try {
-            chrome.storage.local.remove([STORAGE_KEY], () => {
-                if (chrome.runtime.lastError) {
-                    reject(new Error(chrome.runtime.lastError.message));
-                } else {
-                    console.log('[BridgeAI] Context payload cleared');
-                    resolve();
-                }
-            });
-        } catch (error) {
-            reject(error);
-        }
-    });
-}
-
-/**
- * Generate a unique ID for context payloads
- */
-export function generatePayloadId(): string {
-    return `bridge_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+export async function deleteProject(id: string): Promise<void> {
+    await chrome.storage.local.remove(PROJECT_PREFIX + id);
 }
