@@ -1,9 +1,6 @@
-import { useState } from 'react';
 import './style.css';
 
 function IndexPopup() {
-  const [isEnabled, setIsEnabled] = useState(true);
-
   const platforms = [
     { name: 'ChatGPT', url: 'https://chat.openai.com', icon: '🤖', color: '#10a37f' },
     { name: 'Claude', url: 'https://claude.ai', icon: '🧠', color: '#d97706' },
@@ -23,24 +20,9 @@ function IndexPopup() {
         </div>
       </div>
 
-      {/* Status Toggle */}
-      <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm mb-4">
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isEnabled ? 'bg-green-500' : 'bg-gray-400'}`} />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-            {isEnabled ? 'Active' : 'Disabled'}
-          </span>
-        </div>
-        <button
-          onClick={() => setIsEnabled(!isEnabled)}
-          className={`relative w-12 h-6 rounded-full transition-colors ${isEnabled ? 'bg-bridge-primary' : 'bg-gray-300 dark:bg-gray-600'
-            }`}
-        >
-          <div
-            className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transition-transform ${isEnabled ? 'translate-x-7' : 'translate-x-1'
-              }`}
-          />
-        </button>
+      <div className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm mb-4">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Your project memory stays on this device.</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Review, edit, or delete saved projects from the Transfer button in any supported chat.</p>
       </div>
 
       {/* Quick Links */}

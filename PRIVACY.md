@@ -21,3 +21,7 @@ Images, files, and hidden/unloaded messages are not automatically transferred. S
 Edit or remove project memory and pinned messages before transferring. Use **Delete saved project** in the transfer editor to remove a saved project's local memory. This does not delete copies already on the clipboard, in an incoming transfer, or submitted to an AI provider. Dismiss incoming transfers separately. Uninstalling the extension removes its Chrome local storage.
 
 Host permissions are restricted to the supported ChatGPT, Claude, and Gemini domains. The extension also uses storage, tabs, alarms, and clipboard-write permissions for the functions described above.
+
+## Limited use
+
+BridgeAI uses captured website content and user-entered project memory only to provide its visible context-retention and transfer features. It does not sell this data, use it for advertising, creditworthiness or lending decisions, or transmit it for unrelated purposes. The developer does not receive or read users' saved conversations. BridgeAI's use of information adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements.

@@ -9,7 +9,7 @@ const profile = await mkdtemp(path.join(tmpdir(), 'bridgeai-test-'));
 const artifacts = process.env.BRIDGEAI_TEST_OUTPUT || path.resolve('test-results');
 await mkdir(artifacts, { recursive: true });
 const context = await chromium.launchPersistentContext(profile, {
-    headless: true, channel: 'chromium', viewport: { width: 1360, height: 1000 },
+    headless: true, channel: 'chromium', viewport: { width: 1280, height: 800 },
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
 });
 const errors = [];
@@ -37,6 +37,7 @@ try {
     const preview = await page.getByLabel('Full transfer preview', { exact: true }).inputValue();
     assert.ok(preview.includes(code));
     assert.ok(preview.includes('Use Supabase; Firebase was rejected.'));
+    await page.screenshot({ path: path.join(artifacts, 'transfer-preview.png') });
     await page.locator('.bridge-memory-body').evaluate(el => { el.scrollTop = 0; });
     await page.screenshot({ path: path.join(artifacts, 'memory-editor-desktop.png') });
     await page.getByRole('button', { name: 'Save memory', exact: true }).click();
@@ -52,7 +53,7 @@ try {
     await page.locator('.bridge-memory-body').evaluate(el => { el.scrollTop = 0; });
     await page.screenshot({ path: path.join(artifacts, 'memory-editor-mobile.png') });
     assert.equal(await page.getByRole('dialog').evaluate(el => el.scrollWidth <= el.clientWidth), true);
-    await page.setViewportSize({ width: 1360, height: 1000 });
+    await page.setViewportSize({ width: 1280, height: 800 });
 
     const newPage = context.waitForEvent('page');
     await page.getByRole('button', { name: 'Continue in Claude', exact: true }).click();
