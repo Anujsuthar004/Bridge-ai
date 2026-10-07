@@ -2,7 +2,7 @@
 module.exports = {
     mode: "jit",
     darkMode: "class",
-    content: ["./**/*.tsx"],
+    content: ["./popup.tsx", "./contents/**/*.tsx", "./components/**/*.tsx"],
     theme: {
         extend: {
             colors: {

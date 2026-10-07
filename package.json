@@ -1,13 +1,16 @@
 {
   "name": "bridge-ai",
   "displayName": "BridgeAI",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Cross-platform context transfer tool for AI chatbots",
   "author": "voola",
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
-    "package": "plasmo package"
+    "package": "plasmo package",
+    "test": "tsx --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:browser": "node tests/browser.mjs"
   },
   "dependencies": {
     "@plasmohq/storage": "^1.9.3",
@@ -22,14 +25,21 @@
     "@types/react": "18.2.48",
     "@types/react-dom": "18.2.18",
     "autoprefixer": "^10.4.17",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.62.1",
     "postcss": "^8.4.33",
     "prettier": "3.2.4",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.23.15",
     "typescript": "5.3.3"
   },
   "manifest": {
     "host_permissions": [
-      "https://*/*"
+      "https://chat.openai.com/*",
+      "https://chatgpt.com/*",
+      "https://claude.ai/*",
+      "https://gemini.google.com/*",
+      "https://bard.google.com/*"
     ],
     "permissions": [
       "storage",

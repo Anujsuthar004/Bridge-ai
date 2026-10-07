@@ -1,3 +1,4 @@
+import { readMessageText } from '../lib/messageText';
 import type { AIAdapter, Message } from './types';
 
 /**
@@ -33,7 +34,7 @@ export class ChatGPTAdapter implements AIAdapter {
         messageElements.forEach((element) => {
             const role = element.getAttribute('data-message-author-role') as 'user' | 'assistant';
             const contentElement = element.querySelector('.markdown') || element;
-            const content = contentElement.textContent?.trim() || '';
+            const content = readMessageText(contentElement);
 
             if (content && role) {
                 messages.push({

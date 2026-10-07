@@ -19,7 +19,7 @@ function IndexPopup() {
         </div>
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-white">BridgeAI</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Context Transfer Tool</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Switch AI. Keep your progress.</p>
         </div>
       </div>
 
@@ -80,14 +80,14 @@ function IndexPopup() {
       <div className="p-3 rounded-xl bg-gradient-to-r from-bridge-primary/10 to-bridge-secondary/10 border border-bridge-primary/20">
         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
           <strong className="text-bridge-primary">How to use:</strong> Open any AI chat above,
-          start a conversation, then click the <strong>"Transfer"</strong> button to move your context
+          start a conversation, then click the <strong>"Transfer · Keep context"</strong> button to move your context
           to another AI platform.
         </p>
       </div>
 
       {/* Footer */}
       <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 text-center">
-        <p className="text-xs text-gray-400">v0.0.1 • Made with ❤️</p>
+        <p className="text-xs text-gray-400">v0.1.0 • Made with ❤️</p>
       </div>
     </div>
   );

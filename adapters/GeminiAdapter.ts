@@ -1,3 +1,4 @@
+import { readMessageText } from '../lib/messageText';
 import type { AIAdapter, Message } from './types';
 
 /**
@@ -41,7 +42,7 @@ export class GeminiAdapter implements AIAdapter {
             // Look for conversation turns
             const turns = document.querySelectorAll('.conversation-turn, [data-message-id]');
             turns.forEach((turn, index) => {
-                const content = turn.textContent?.trim() || '';
+                const content = readMessageText(turn);
                 if (content) {
                     messages.push({
                         role: index % 2 === 0 ? 'user' : 'assistant',
@@ -57,7 +58,7 @@ export class GeminiAdapter implements AIAdapter {
         const maxLen = Math.max(userMessages.length, assistantMessages.length);
         for (let i = 0; i < maxLen; i++) {
             if (i < userMessages.length) {
-                const content = userMessages[i].textContent?.trim() || '';
+                const content = readMessageText(userMessages[i]);
                 if (content) {
                     messages.push({
                         role: 'user',
@@ -67,7 +68,7 @@ export class GeminiAdapter implements AIAdapter {
                 }
             }
             if (i < assistantMessages.length) {
-                const content = assistantMessages[i].textContent?.trim() || '';
+                const content = readMessageText(assistantMessages[i]);
                 if (content) {
                     messages.push({
                         role: 'assistant',

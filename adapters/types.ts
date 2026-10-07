@@ -17,6 +17,8 @@ export interface ContextPayload {
     messages: Message[];
     formattedPrompt: string;
     timestamp: number;
+    projectId?: string;
+    targetTabId?: number;
 }
 
 export interface AIAdapter {

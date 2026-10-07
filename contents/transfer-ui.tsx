@@ -1,319 +1,76 @@
 import type { PlasmoCSConfig, PlasmoGetStyle, PlasmoGetShadowHostId } from 'plasmo';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import cssText from 'data-text:~style.css';
-import { getActiveAdapter, PLATFORMS, type AIAdapter, type PlatformOption, type ContextPayload } from '~adapters';
-import { buildTransferPrompt, validateMessages } from '~lib/contextEngine';
-import { saveContextPayload, getContextPayload, clearContextPayload, generatePayloadId } from '~lib/storage';
+import { getActiveAdapter, type AIAdapter, type Message, type ContextPayload } from '~adapters';
+import { MemoryEditor } from '~components/MemoryEditor';
+import { listProjects, saveProject, deleteProject } from '~lib/storage';
+import type { ProjectMemory } from '~lib/projectMemory';
 
-// Plasmo Content Script Configuration
 export const config: PlasmoCSConfig = {
-    matches: [
-        'https://chat.openai.com/*',
-        'https://chatgpt.com/*',
-        'https://claude.ai/*',
-        'https://gemini.google.com/*',
-        'https://bard.google.com/*',
-    ],
+    matches: ['https://chat.openai.com/*', 'https://chatgpt.com/*', 'https://claude.ai/*', 'https://gemini.google.com/*', 'https://bard.google.com/*'],
     all_frames: false,
 };
-
-// Get custom styles for Shadow DOM
-export const getStyle: PlasmoGetStyle = () => {
-    const style = document.createElement('style');
-    style.textContent = cssText;
-    return style;
-};
-
-// Custom shadow host ID for styling
+export const getStyle: PlasmoGetStyle = () => { const style = document.createElement('style'); style.textContent = cssText; return style; };
 export const getShadowHostId: PlasmoGetShadowHostId = () => 'bridge-ai-root';
 
-// Transfer Overlay Component
-interface TransferOverlayProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onTransfer: (destination: PlatformOption) => void;
-    currentPlatform: string;
-    isTransferring: boolean;
-}
-
-function TransferOverlay({ isOpen, onClose, onTransfer, currentPlatform, isTransferring }: TransferOverlayProps) {
-    if (!isOpen) return null;
-
-    const availableDestinations = PLATFORMS.filter((p) => p.id !== currentPlatform);
-
-    return (
-        <div className="bridge-overlay" onClick={onClose}>
-            <div className="bridge-modal" onClick={(e) => e.stopPropagation()}>
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                            Transfer Conversation
-                        </h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Choose a destination for your context
-                        </p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                        aria-label="Close"
-                    >
-                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                {/* Destination Options */}
-                <div className="space-y-3">
-                    {availableDestinations.map((platform) => (
-                        <button
-                            key={platform.id}
-                            onClick={() => onTransfer(platform)}
-                            disabled={isTransferring}
-                            className="w-full bridge-card flex items-center gap-4 hover:scale-[1.02] active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <span className="text-3xl">{platform.icon}</span>
-                            <div className="flex-1 text-left">
-                                <span className="font-semibold text-gray-900 dark:text-white">
-                                    {platform.name}
-                                </span>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Transfer context to {platform.name}
-                                </p>
-                            </div>
-                            <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: platform.color }}
-                            />
-                        </button>
-                    ))}
-                </div>
-
-                {/* Footer */}
-                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <p className="text-xs text-gray-400 text-center">
-                        Last 10 messages will be transferred with context summary
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// Status Toast Component
-interface ToastProps {
-    message: string;
-    type: 'success' | 'error' | 'info';
-    isVisible: boolean;
-}
-
-function Toast({ message, type, isVisible }: ToastProps) {
-    if (!isVisible) return null;
-
-    const bgColor = {
-        success: 'bg-green-500',
-        error: 'bg-red-500',
-        info: 'bg-blue-500',
-    }[type];
-
-    return (
-        <div className={`fixed bottom-4 right-4 z-[9999999] ${bgColor} text-white px-4 py-3 rounded-lg shadow-xl animate-slide-up flex items-center gap-2`}>
-            {type === 'success' && <span>✓</span>}
-            {type === 'error' && <span>✕</span>}
-            {type === 'info' && <span>ℹ</span>}
-            <span className="font-medium">{message}</span>
-        </div>
-    );
-}
-
-// Main Content Script Component
 function TransferUI() {
     const [adapter, setAdapter] = useState<AIAdapter | null>(null);
-    const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-    const [isTransferring, setIsTransferring] = useState(false);
-    const [isInjecting, setIsInjecting] = useState(false);
-    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+    const [projects, setProjects] = useState<ProjectMemory[]>([]);
+    const [snapshot, setSnapshot] = useState<{ messages: Message[]; url: string } | null>(null);
+    const [pending, setPending] = useState<ContextPayload | null>(null);
+    const [arrivalStatus, setArrivalStatus] = useState('');
+    const [error, setError] = useState('');
+    const [initialProjectId, setInitialProjectId] = useState<string>();
 
-    // Show toast notification
-    const showToast = useCallback((message: string, type: 'success' | 'error' | 'info') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 5000); // 5 seconds for better visibility
+    useEffect(() => {
+        setAdapter(getActiveAdapter());
+        chrome.runtime.sendMessage({ type: 'GET_PENDING_CONTEXT' }).then(response => {
+            if (response?.payload) { setPending(response.payload); setInitialProjectId(response.payload.projectId); }
+        }).catch(() => setError('BridgeAI could not load the incoming transfer. Reload this tab to retry.'));
     }, []);
 
-    // Initialize adapter on mount
-    useEffect(() => {
-        const activeAdapter = getActiveAdapter();
-        setAdapter(activeAdapter);
-
-        if (activeAdapter) {
-            console.log(`[BridgeAI] Detected platform: ${activeAdapter.platformName}`);
-        }
-    }, []);
-
-    // Check for pending context on load (destination tab)
-    useEffect(() => {
-        const checkAndInjectContext = async () => {
-            if (!adapter) return;
-
-            try {
-                const payload = await getContextPayload();
-
-                if (payload && payload.destinationPlatform === adapter.platformId) {
-                    console.log('[BridgeAI] Found pending context for this platform');
-                    setIsInjecting(true);
-
-                    // Wait for the input to be ready
-                    const isReady = await adapter.waitForReady();
-
-                    if (isReady) {
-                        const success = await adapter.injectPrompt(payload.formattedPrompt);
-
-                        if (success) {
-                            // Clipboard has the content - user needs to paste
-                            showToast('📋 Ready! Press ⌘+V (Mac) or Ctrl+V to paste', 'success');
-                            await clearContextPayload();
-                        } else {
-                            showToast('Failed to inject context', 'error');
-                        }
-                    } else {
-                        showToast('Timed out waiting for chat to load', 'error');
-                    }
-
-                    setIsInjecting(false);
-                }
-            } catch (error) {
-                console.error('[BridgeAI] Error checking/injecting context:', error);
-                setIsInjecting(false);
-            }
-        };
-
-        // Delay slightly to ensure DOM is ready
-        const timer = setTimeout(checkAndInjectContext, 1500);
-        return () => clearTimeout(timer);
-    }, [adapter, showToast]);
-
-    // Handle transfer initiation
-    const handleTransfer = async (destination: PlatformOption) => {
+    const openEditor = async () => {
         if (!adapter) return;
-
         try {
-            setIsTransferring(true);
-
-            // Scrape messages from current conversation
-            const messages = adapter.scrapeMessages();
-
-            // Validate messages
-            const validation = validateMessages(messages);
-            if (!validation.valid) {
-                showToast(validation.error || 'No messages to transfer', 'error');
-                setIsTransferring(false);
-                setIsOverlayOpen(false);
-                return;
-            }
-
-            // Build the transfer prompt
-            const formattedPrompt = buildTransferPrompt(messages, adapter.platformName);
-
-            // Create context payload
-            const payload: ContextPayload = {
-                id: generatePayloadId(),
-                sourcePlatform: adapter.platformId,
-                destinationPlatform: destination.id,
-                messages,
-                formattedPrompt,
-                timestamp: Date.now(),
-            };
-
-            // Save to storage
-            await saveContextPayload(payload);
-
-            // Open destination tab via background script
-            console.log('[BridgeAI] Sending OPEN_DESTINATION_TAB message:', destination.id);
-
-            chrome.runtime.sendMessage(
-                { type: 'OPEN_DESTINATION_TAB', destinationPlatform: destination.id },
-                (response) => {
-                    // Check for chrome.runtime.lastError first
-                    if (chrome.runtime.lastError) {
-                        console.error('[BridgeAI] Runtime error:', chrome.runtime.lastError.message);
-                        showToast('Extension error: ' + chrome.runtime.lastError.message, 'error');
-                        return;
-                    }
-
-                    console.log('[BridgeAI] Got response:', response);
-                    if (response?.success) {
-                        showToast(`Opening ${destination.name}...`, 'info');
-                    } else {
-                        showToast(response?.error || 'Failed to open tab', 'error');
-                    }
-                }
-            );
-
-            setIsOverlayOpen(false);
-        } catch (error) {
-            console.error('[BridgeAI] Transfer error:', error);
-            showToast('Transfer failed. Please try again.', 'error');
-        } finally {
-            setIsTransferring(false);
-        }
+            setProjects(await listProjects());
+            setSnapshot({ messages: adapter.scrapeMessages(), url: location.origin + location.pathname });
+            setError('');
+        } catch { setError('Could not read project memory. Reload the extension and try again.'); }
     };
-
-    // Don't render if no adapter detected
-    if (!adapter) {
-        return null;
-    }
-
-    return (
-        <>
-            {/* Transfer Button - Fixed position */}
-            <button
-                onClick={() => setIsOverlayOpen(true)}
-                disabled={isInjecting}
-                className="fixed bottom-20 right-6 z-[999998] bridge-btn shadow-2xl"
-                title="Transfer conversation to another AI"
-            >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                    />
-                </svg>
-                <span>Transfer</span>
-            </button>
-
-            {/* Transfer Overlay */}
-            <TransferOverlay
-                isOpen={isOverlayOpen}
-                onClose={() => setIsOverlayOpen(false)}
-                onTransfer={handleTransfer}
-                currentPlatform={adapter.platformId}
-                isTransferring={isTransferring}
-            />
-
-            {/* Toast Notifications */}
-            <Toast
-                message={toast?.message || ''}
-                type={toast?.type || 'info'}
-                isVisible={toast !== null}
-            />
-
-            {/* Injection Loading Indicator */}
-            {isInjecting && (
-                <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl flex items-center gap-4 animate-pulse-subtle">
-                        <div className="w-8 h-8 border-4 border-bridge-primary border-t-transparent rounded-full animate-spin" />
-                        <span className="font-medium text-gray-900 dark:text-white">
-                            Transferring context...
-                        </span>
-                    </div>
-                </div>
-            )}
-        </>
-    );
+    const copyIncoming = async () => {
+        if (!pending) return;
+        try {
+            await navigator.clipboard.writeText(pending.formattedPrompt);
+            setArrivalStatus('Copied. Paste into the chat input, review, and send.');
+            adapter?.getInputElement()?.focus();
+        } catch { setArrivalStatus('Clipboard access failed. Select and copy the text below.'); }
+    };
+    if (!adapter) return null;
+    return <>
+        <button onClick={openEditor} className="fixed bottom-6 right-6 z-[999996] bridge-btn shadow-2xl">Transfer · Keep context</button>
+        {error && <div className="bridge-arrival" role="alert">{error}<button className="bridge-btn-ghost" onClick={() => setError('')}>Dismiss</button></div>}
+        {pending && !snapshot && <section className="bridge-arrival" aria-label="Incoming project context">
+            <strong>Your project context is ready</strong><p>Copy it, then paste into this chat. Your saved memory is available under Transfer.</p>
+            <textarea aria-label="Incoming context" readOnly value={pending.formattedPrompt} onFocus={event => event.currentTarget.select()} />
+            <div className="bridge-actions"><button className="bridge-btn" onClick={copyIncoming}>Copy context</button>
+                <button className="bridge-btn-ghost" onClick={async () => {
+                    try { await chrome.runtime.sendMessage({ type: 'CLEAR_PENDING_CONTEXT', id: pending.id }); setPending(null); }
+                    catch { setArrivalStatus('Could not dismiss the transfer. Try again.'); }
+                }}>Dismiss</button></div><p role="status">{arrivalStatus}</p>
+        </section>}
+        {snapshot && <MemoryEditor messages={snapshot.messages} sourcePlatform={adapter.platformName} sourceUrl={snapshot.url}
+            platformId={adapter.platformId} projects={projects} initialProjectId={initialProjectId}
+            onClose={() => { setSnapshot(null); setInitialProjectId(undefined); }}
+            onSave={async project => { await saveProject(project); setProjects(await listProjects()); }}
+            onDelete={async id => { await deleteProject(id); setProjects(await listProjects()); }}
+            onTransfer={async (project, prompt, destination) => {
+                const payload: ContextPayload = {
+                    id: crypto.randomUUID(), sourcePlatform: adapter.platformId, destinationPlatform: destination.id,
+                    messages: [], formattedPrompt: prompt, timestamp: Date.now(), projectId: project.id,
+                };
+                const response = await chrome.runtime.sendMessage({ type: 'TRANSFER_CONTEXT', payload });
+                if (!response?.success) throw new Error(response?.error || 'Could not open the destination. Use Copy context or retry.');
+            }} />}
+    </>;
 }
-
 export default TransferUI;
