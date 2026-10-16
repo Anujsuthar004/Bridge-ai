@@ -8,7 +8,6 @@ import type { AIAdapter, Message } from './types';
 export class ClaudeAdapter implements AIAdapter {
     readonly platformName = 'Claude';
     readonly platformId = 'claude';
-    readonly newChatUrl = 'https://claude.ai/new';
 
     // DOM Selectors (updated for Claude 2026)
     private readonly selectors = {
@@ -16,7 +15,6 @@ export class ClaudeAdapter implements AIAdapter {
         userMessage: '[data-testid="user-message"], .font-user-message, [data-is-human-message="true"]',
         assistantMessage: '[data-testid="assistant-message"], .font-claude-message, [data-is-human-message="false"]',
         inputTextarea: '[data-testid="prompt-input"], [contenteditable="true"], .ProseMirror',
-        sendButton: '[data-testid="send-button"], button[aria-label="Send"]',
         // Broader fallback selectors
         conversationTurn: '[data-testid^="chat-message"], .group\\/turn, [class*="turn"], [class*="message"]',
         fallbackMessages: '.prose, .whitespace-pre-wrap, [class*="MessageContent"]',
@@ -32,9 +30,6 @@ export class ClaudeAdapter implements AIAdapter {
         // Strategy 1: Try user and assistant message selectors separately
         const userMessages = document.querySelectorAll(this.selectors.userMessage);
         const assistantMessages = document.querySelectorAll(this.selectors.assistantMessage);
-
-        console.log('[BridgeAI] Claude - Found user messages:', userMessages.length);
-        console.log('[BridgeAI] Claude - Found assistant messages:', assistantMessages.length);
 
         if (userMessages.length > 0 || assistantMessages.length > 0) {
             // Collect all messages with their positions in the DOM
@@ -71,14 +66,12 @@ export class ClaudeAdapter implements AIAdapter {
             });
 
             if (messages.length > 0) {
-                console.log('[BridgeAI] Claude - Scraped', messages.length, 'messages via specific selectors');
                 return messages;
             }
         }
 
         // Strategy 2: Try conversation turn selectors
         const turns = document.querySelectorAll(this.selectors.conversationTurn);
-        console.log('[BridgeAI] Claude - Found conversation turns:', turns.length);
 
         if (turns.length > 0) {
             turns.forEach((turn, index) => {
@@ -98,14 +91,12 @@ export class ClaudeAdapter implements AIAdapter {
             });
 
             if (messages.length > 0) {
-                console.log('[BridgeAI] Claude - Scraped', messages.length, 'messages via turns');
                 return messages;
             }
         }
 
         // Strategy 3: Fallback to prose elements
         const proseElements = document.querySelectorAll(this.selectors.fallbackMessages);
-        console.log('[BridgeAI] Claude - Found fallback elements:', proseElements.length);
 
         proseElements.forEach((element, index) => {
             const content = readMessageText(element);
@@ -118,7 +109,6 @@ export class ClaudeAdapter implements AIAdapter {
             }
         });
 
-        console.log('[BridgeAI] Claude - Final scraped messages:', messages.length);
         return messages;
     }
 
@@ -144,53 +134,5 @@ export class ClaudeAdapter implements AIAdapter {
         }
 
         return null;
-    }
-
-    async injectPrompt(text: string): Promise<boolean> {
-        const input = this.getInputElement();
-
-        try {
-            // Copy to clipboard - most reliable method
-            await navigator.clipboard.writeText(text);
-            console.log('[BridgeAI] Context copied to clipboard');
-
-            // Focus the input so user can immediately paste
-            if (input) {
-                input.focus();
-                input.click();
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-
-            return true;
-        } catch (error) {
-            console.error('[BridgeAI] Failed to copy to clipboard:', error);
-            return false;
-        }
-    }
-
-    async waitForReady(): Promise<boolean> {
-        return new Promise((resolve) => {
-            if (this.getInputElement()) {
-                resolve(true);
-                return;
-            }
-
-            const observer = new MutationObserver((mutations, obs) => {
-                if (this.getInputElement()) {
-                    obs.disconnect();
-                    resolve(true);
-                }
-            });
-
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-            });
-
-            setTimeout(() => {
-                observer.disconnect();
-                resolve(false);
-            }, 10000);
-        });
     }
 }

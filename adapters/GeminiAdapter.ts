@@ -8,26 +8,16 @@ import type { AIAdapter, Message } from './types';
 export class GeminiAdapter implements AIAdapter {
     readonly platformName = 'Gemini';
     readonly platformId = 'gemini';
-    readonly newChatUrl = 'https://gemini.google.com/app';
 
     // DOM Selectors (updated for 2026)
     private readonly selectors = {
-        messageContainer: 'message-content, .conversation-turn',
         userMessage: 'user-query, .user-message',
         assistantMessage: 'model-response, .model-message',
-        inputTextarea: 'rich-textarea, .ql-editor, [contenteditable="true"]',
-        sendButton: 'button[aria-label="Send message"], .send-button',
-        conversationContainer: '.conversation-container',
-        // Fallback selectors
-        fallbackMessages: '.message-content',
         fallbackInput: 'div[contenteditable="true"][role="textbox"]',
     };
 
     isDetected(): boolean {
-        return (
-            window.location.hostname.includes('gemini.google.com') ||
-            window.location.hostname.includes('bard.google.com')
-        );
+        return window.location.hostname.includes('gemini.google.com');
     }
 
     scrapeMessages(): Message[] {
@@ -100,54 +90,5 @@ export class GeminiAdapter implements AIAdapter {
         }
 
         return null;
-    }
-
-    async injectPrompt(text: string): Promise<boolean> {
-        const input = this.getInputElement();
-
-        try {
-            // Copy to clipboard - this is the only reliable method for Gemini
-            await navigator.clipboard.writeText(text);
-            console.log('[BridgeAI] Context copied to clipboard');
-
-            // Focus the input so user can immediately paste
-            if (input) {
-                input.focus();
-                input.click();
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-
-            // Return true - clipboard has the content
-            return true;
-        } catch (error) {
-            console.error('[BridgeAI] Failed to copy to clipboard:', error);
-            return false;
-        }
-    }
-
-    async waitForReady(): Promise<boolean> {
-        return new Promise((resolve) => {
-            if (this.getInputElement()) {
-                resolve(true);
-                return;
-            }
-
-            const observer = new MutationObserver((mutations, obs) => {
-                if (this.getInputElement()) {
-                    obs.disconnect();
-                    resolve(true);
-                }
-            });
-
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-            });
-
-            setTimeout(() => {
-                observer.disconnect();
-                resolve(false);
-            }, 10000);
-        });
     }
 }

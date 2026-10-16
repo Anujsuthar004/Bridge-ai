@@ -98,11 +98,17 @@ bridge-ai/
 │   ├── ChatGPTAdapter.ts
 │   ├── ClaudeAdapter.ts
 │   └── GeminiAdapter.ts
+├── components/         # React UI
+│   └── MemoryEditor.tsx
 ├── contents/           # Content scripts
 │   └── transfer-ui.tsx
 ├── lib/                # Utilities
-│   ├── contextEngine.ts
+│   ├── contextEngine.ts      # Builds the handoff prompt
+│   ├── messageText.ts        # Reads chat text, keeps code whitespace
+│   ├── pendingTransfers.ts   # Per-tab pending handoffs (5-minute TTL)
+│   ├── projectMemory.ts
 │   └── storage.ts
+├── tests/              # Unit and Playwright browser checks
 ├── background.ts       # Service worker
 ├── popup.tsx           # Extension popup
 └── style.css           # Global styles
