@@ -15,43 +15,7 @@ const adapters: AIAdapter[] = [
  * @returns The matching adapter or null if no match
  */
 export function getActiveAdapter(): AIAdapter | null {
-    for (const adapter of adapters) {
-        if (adapter.isDetected()) {
-            return adapter;
-        }
-    }
-    return null;
-}
-
-/**
- * Get an adapter by its platform ID
- * @param platformId - The platform identifier (e.g., 'chatgpt', 'claude', 'gemini')
- * @returns The matching adapter or null if not found
- */
-export function getAdapterByPlatformId(platformId: string): AIAdapter | null {
-    return adapters.find((adapter) => adapter.platformId === platformId) || null;
-}
-
-/**
- * Get all registered adapters
- * @returns Array of all adapters
- */
-export function getAllAdapters(): AIAdapter[] {
-    return [...adapters];
-}
-
-/**
- * Register a new adapter (for extensibility)
- * @param adapter - The adapter to register
- */
-export function registerAdapter(adapter: AIAdapter): void {
-    // Avoid duplicates
-    const existingIndex = adapters.findIndex((a) => a.platformId === adapter.platformId);
-    if (existingIndex >= 0) {
-        adapters[existingIndex] = adapter;
-    } else {
-        adapters.push(adapter);
-    }
+    return adapters.find((adapter) => adapter.isDetected()) || null;
 }
 
 // Re-export types and adapters

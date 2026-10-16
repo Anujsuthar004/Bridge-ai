@@ -28,9 +28,6 @@ export interface AIAdapter {
     /** Platform identifier for routing */
     readonly platformId: string;
 
-    /** URL pattern to open a new chat */
-    readonly newChatUrl: string;
-
     /**
      * Check if this adapter matches the current page
      */
@@ -42,20 +39,9 @@ export interface AIAdapter {
     scrapeMessages(): Message[];
 
     /**
-     * Inject a prompt into the chat input
-     * Uses techniques to bypass React/Next.js state management
+     * Get the main input element for the chat, so it can be focused after copying context
      */
-    injectPrompt(text: string): Promise<boolean>;
-
-    /**
-     * Get the main input element for the chat
-     */
-    getInputElement(): HTMLTextAreaElement | HTMLElement | null;
-
-    /**
-     * Wait for the chat UI to be ready (using MutationObserver)
-     */
-    waitForReady(): Promise<boolean>;
+    getInputElement(): HTMLElement | null;
 }
 
 export interface PlatformOption {
@@ -71,7 +57,7 @@ export const PLATFORMS: PlatformOption[] = [
         id: 'chatgpt',
         name: 'ChatGPT',
         icon: '🤖',
-        url: 'https://chat.openai.com',
+        url: 'https://chatgpt.com',
         color: '#10a37f'
     },
     {

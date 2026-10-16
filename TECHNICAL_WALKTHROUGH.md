@@ -95,14 +95,14 @@ interface AIAdapter {
     platformName: string;           // "ChatGPT", "Claude", etc.
     isDetected(): boolean;          // "Am I on this website?"
     scrapeMessages(): Message[];    // "Read all the chat messages"
-    injectPrompt(text: string): Promise<boolean>;  // "Paste this text"
+    getInputElement(): HTMLElement | null;  // "Where is the chat input box?"
 }
 ```
 
 **In plain English:**
 - **`isDetected()`** → Checks if you're on ChatGPT, Claude, or Gemini
 - **`scrapeMessages()`** → Goes through the webpage and collects all messages (who said what)
-- **`injectPrompt()`** → Puts text into the input box on the destination platform
+- **`getInputElement()`** → Finds the chat input box so BridgeAI can focus it after you copy the context
 
 **Why is this smart?**
 - To add a new platform (like Perplexity), you just create ONE new adapter file

@@ -1,12 +1,7 @@
 import './style.css';
+import { PLATFORMS } from '~adapters/types';
 
 function IndexPopup() {
-  const platforms = [
-    { name: 'ChatGPT', url: 'https://chat.openai.com', icon: '🤖', color: '#10a37f' },
-    { name: 'Claude', url: 'https://claude.ai', icon: '🧠', color: '#d97706' },
-    { name: 'Gemini', url: 'https://gemini.google.com', icon: '✨', color: '#4285f4' },
-  ];
-
   return (
     <div className="w-80 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-[320px]">
       {/* Header */}
@@ -31,9 +26,9 @@ function IndexPopup() {
           Quick Access
         </h3>
         <div className="space-y-2">
-          {platforms.map((platform) => (
+          {PLATFORMS.map((platform) => (
             <a
-              key={platform.name}
+              key={platform.id}
               href={platform.url}
               target="_blank"
               rel="noopener noreferrer"
@@ -69,7 +64,7 @@ function IndexPopup() {
 
       {/* Footer */}
       <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 text-center">
-        <p className="text-xs text-gray-400">v0.1.0 • Made with ❤️</p>
+        <p className="text-xs text-gray-400">v{chrome.runtime.getManifest().version} • Made with ❤️</p>
       </div>
     </div>
   );

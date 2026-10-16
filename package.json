@@ -3,7 +3,7 @@
   "displayName": "BridgeAI",
   "version": "0.1.0",
   "description": "Cross-platform context transfer tool for AI chatbots",
-  "author": "voola",
+  "author": "Anuj Suthar",
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
@@ -38,8 +38,7 @@
       "https://chat.openai.com/*",
       "https://chatgpt.com/*",
       "https://claude.ai/*",
-      "https://gemini.google.com/*",
-      "https://bard.google.com/*"
+      "https://gemini.google.com/*"
     ],
     "permissions": [
       "storage",

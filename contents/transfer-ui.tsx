@@ -7,7 +7,7 @@ import { listProjects, saveProject, deleteProject } from '~lib/storage';
 import type { ProjectMemory } from '~lib/projectMemory';
 
 export const config: PlasmoCSConfig = {
-    matches: ['https://chat.openai.com/*', 'https://chatgpt.com/*', 'https://claude.ai/*', 'https://gemini.google.com/*', 'https://bard.google.com/*'],
+    matches: ['https://chat.openai.com/*', 'https://chatgpt.com/*', 'https://claude.ai/*', 'https://gemini.google.com/*'],
     all_frames: false,
 };
 export const getStyle: PlasmoGetStyle = () => { const style = document.createElement('style'); style.textContent = cssText; return style; };
