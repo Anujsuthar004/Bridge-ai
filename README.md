@@ -13,6 +13,9 @@ Carry a reviewed project brief, pinned messages, and exact working material betw
 ## ✨ Features
 
 - **Portable project memory** — edit your goal, requirements, current decisions, progress, and next action.
+- **AI-drafted brief** — ask your current AI to draft the brief from the conversation, review the filled fields, and undo if needed.
+- **Ready in the destination** — the handoff is placed straight into the new chat's input box. You review it and press send.
+- **Full history** — load older messages that long chats only show after scrolling up. Guessed speaker labels are flagged, never hidden.
 - **Exact working material** — carry code, drafts, calculations, and errors without a per-message cutoff.
 - **Pinned evidence** — preserve full messages with their platform, conversation link, and message number.
 - **Review before transferring** — preview the exact prompt and see which recent messages will not fit.
@@ -64,18 +67,18 @@ Use Node.js 22.13+ (or a current Node.js 24+ release) for the development and te
 ## 🎮 Usage
 
 1. Open a conversation and click **Transfer · Keep context**.
-2. Start a project or explicitly select a saved one. Update its brief and replace decisions that are no longer current.
+2. Start a project or explicitly select a saved one. Update its brief and replace decisions that are no longer current, or click **Ask … to draft it**, send the request, then click **Fill brief** once the reply finishes and review the fields.
 3. Pin important messages and paste any exact working material. The first user request is included by default; you can remove it.
 4. Review the full transfer preview and any omission notice. Increase the budget or pin an omitted message if it matters.
 5. Click **Continue in Claude / Gemini / ChatGPT**. The project is saved locally before opening the destination.
-6. In the destination tab, click **Copy context**, paste, review, and send. A selectable text fallback is available if clipboard access fails.
+6. In the destination tab, the context is inserted into the chat box automatically. Review it and press send. If the chat box already has text or can't be found, use **Insert into chat** or **Copy context** instead.
 7. For the next switch, select the same saved project and update its progress. Its original request and pins remain intact. Previous handoff envelopes for that project are excluded from recent history to prevent nesting.
 
 **Save memory** persists edits without transferring. **Copy context** saves the project and copies the handoff without opening a tab. **Delete saved project** removes that project's saved memory; it cannot retract text already pasted into another service.
 
 ### Capture limitations
 
-Only text present in the page DOM is captured. Scroll/load older conversation messages before opening the editor if they are needed. Images, attached files, hidden messages, and provider-side memory are not transferred. Re-upload files at the destination. Platform DOM changes can require adapter updates.
+Only text present in the page DOM is captured. Use **Load earlier messages** in the editor to pull in older messages from long chats. Images, attached files, hidden messages, and provider-side memory are not transferred. Re-upload files at the destination. Platform DOM changes can require adapter updates.
 
 Project memory is explicitly edited by the user; this release does not automatically infer decisions or perform AI summarization. Selected code retains its captured whitespace, but this is not a byte-for-byte export of original uploaded files. Budgets measure JavaScript string length, not tokens or provider quotas.
 

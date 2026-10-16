@@ -1,4 +1,5 @@
 import type { Message } from '../adapters/types';
+import { isBriefReply, isBriefRequest } from './briefDraft';
 import type { ProjectMemory, SourceMessage } from './projectMemory';
 
 export const DEFAULT_CHARACTER_BUDGET = 24000;
@@ -10,6 +11,8 @@ export interface HandoffResult {
     included: number[];
     omitted: number[];
     previousHandoffs: number[];
+    /** Brief requests and replies; their content belongs in the project memory instead. */
+    briefExchanges: number[];
     overBudget: boolean;
     characterCount: number;
 }
@@ -22,6 +25,10 @@ const formatSource = (message: SourceMessage) =>
 export function isProjectHandoff(content: string, projectId: string): boolean {
     const normalized = content.trim().replace(/\s+/g, ' ');
     return normalized.startsWith(`${HANDOFF_START} Project ID: ${projectId} `) && normalized.endsWith(HANDOFF_END);
+}
+
+export function isBriefExchange(message: Message): boolean {
+    return message.role === 'user' ? isBriefRequest(message.content) : isBriefReply(message.content);
 }
 
 export function buildHandoff(messages: Message[], sourcePlatform: string, sourceUrl: string,
@@ -39,10 +46,15 @@ export function buildHandoff(messages: Message[], sourcePlatform: string, source
         `ORIGINAL REQUEST\n${memory.originalRequest ? formatSource(memory.originalRequest) : '(Not captured.)'}\n\n` +
         `PINNED MATERIAL — preserved in full\n${memory.pins.length ? memory.pins.map(formatSource).join('\n\n') : '(None.)'}`;
     const previousHandoffs: number[] = [];
+    const briefExchanges: number[] = [];
     const protectedMessages = [memory.originalRequest, ...memory.pins].filter(Boolean) as SourceMessage[];
     const candidates = messages.map((message, index) => ({ message, index })).filter(({ message, index }) => {
         if (isProjectHandoff(message.content, memory.id)) {
             previousHandoffs.push(index);
+            return false;
+        }
+        if (isBriefExchange(message)) {
+            briefExchanges.push(index);
             return false;
         }
         return !protectedMessages.some(p => p.sourceUrl === sourceUrl && p.role === message.role && p.content === message.content);
@@ -50,7 +62,8 @@ export function buildHandoff(messages: Message[], sourcePlatform: string, source
     const render = (selected: typeof candidates) => {
         const omitted = candidates.length - selected.length;
         return `${fixed}\n\nRECENT CONVERSATION — ${sourcePlatform}; ${sourceUrl}\n` +
-            `Coverage: ${selected.length} recent messages; ${omitted} omitted for size; ${previousHandoffs.length} earlier handoff envelopes excluded. Original request and pins appear above.\n` +
+            `Coverage: ${selected.length} recent messages; ${omitted} omitted for size; ${previousHandoffs.length} earlier handoff envelopes excluded` +
+            (briefExchanges.length ? `; ${briefExchanges.length} brief-drafting messages excluded` : '') + `. Original request and pins appear above.\n` +
             `Only text available on the page was captured. Attachments and hidden/unloaded messages are not included.\n\n` +
             selected.map(({ message, index }) => `[${message.role}; message ${index + 1}]\n${message.content}`).join('\n\n') +
             `\n\nContinue with the next action above; avoid redoing completed work.\n${HANDOFF_END}`;
@@ -67,7 +80,7 @@ export function buildHandoff(messages: Message[], sourcePlatform: string, source
     const included = selected.map(item => item.index);
     return {
         prompt, included, omitted: candidates.filter(item => !included.includes(item.index)).map(item => item.index),
-        previousHandoffs, overBudget: prompt.length > budget, characterCount: prompt.length,
+        previousHandoffs, briefExchanges, overBudget: prompt.length > budget, characterCount: prompt.length,
     };
 }
 

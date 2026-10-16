@@ -59,15 +59,65 @@ try {
     await page.getByRole('button', { name: 'Continue in Claude', exact: true }).click();
     const destination = await newPage;
     await destination.waitForURL('https://claude.ai/');
-    const incoming = destination.getByLabel('Incoming context', { exact: true });
-    await incoming.waitFor();
-    assert.ok((await incoming.inputValue()).includes(code));
-    assert.ok((await incoming.inputValue()).includes('Use Supabase; Firebase was rejected.'));
+    // The context is inserted into the destination's chat box automatically, and never sent.
+    await destination.getByText('Inserted into the chat box. Review it, then press send.', { exact: true }).waitFor();
+    const composer = await destination.locator('[data-testid="prompt-input"]').textContent();
+    assert.ok(composer.replace(/\s+/g, '').includes(code.replace(/\s+/g, '')));
+    assert.ok(composer.includes('Use Supabase; Firebase was rejected.'));
 
     const unrelated = await context.newPage();
     await unrelated.goto('https://claude.ai/chat/unrelated');
     await unrelated.getByRole('button', { name: 'Transfer · Keep context' }).waitFor();
     assert.equal(await unrelated.getByLabel('Incoming context', { exact: true }).count(), 0);
+    assert.equal(await unrelated.getByText('Your project context is', { exact: false }).count(), 0);
+
+    // Load earlier messages: this fixture lazily adds older turns when scrolled to the top.
+    await unrelated.evaluate(() => {
+        document.body.insertAdjacentHTML('beforeend', '<div style="height:3000px"></div>');
+        window.scrollTo(0, document.body.scrollHeight);
+        let left = 2;
+        window.addEventListener('scroll', () => {
+            if (window.scrollY !== 0 || left === 0) return;
+            left--;
+            document.querySelector('h1').insertAdjacentHTML('afterend', `<div data-testid="user-message">Older message ${left}</div><div style="height:600px"></div>`);
+            window.scrollTo(0, 400);
+        });
+    });
+    await unrelated.getByRole('button', { name: 'Transfer · Keep context' }).click();
+    await unrelated.getByRole('button', { name: 'Load earlier messages', exact: true }).click();
+    await unrelated.getByText('Loaded 2 earlier messages.', { exact: true }).waitFor({ timeout: 30000 });
+    assert.ok((await unrelated.locator('.bridge-messages summary').first().textContent()).includes('Older message 0'));
+    await unrelated.getByText('Full transfer preview', { exact: true }).click();
+    assert.ok((await unrelated.getByLabel('Full transfer preview', { exact: true }).inputValue())
+        .includes('ORIGINAL REQUEST\n[user; Claude; message 1; https://claude.ai/chat/unrelated]\nOlder message 0'));
+
+    // Draft the brief with the current AI: the request goes into the chat box, the reply fills the fields.
+    await unrelated.getByRole('button', { name: 'Ask Claude to draft it', exact: true }).click();
+    await unrelated.getByText('The brief request is in the chat box.', { exact: false }).waitFor();
+    const request = await unrelated.locator('[data-testid="prompt-input"]').evaluate(el => el.innerText);
+    assert.ok(request.startsWith('[BridgeAI brief request]'));
+    await unrelated.evaluate(sent => {
+        document.querySelector('[data-testid="prompt-input"]').innerHTML = '';
+        const user = document.createElement('div'); user.dataset.testid = 'user-message'; user.textContent = sent;
+        const reply = document.createElement('div'); reply.dataset.testid = 'assistant-message';
+        reply.innerHTML = '<p>[BRIDGEAI:NAME]<br>Portfolio redesign</p><p>[BRIDGEAI:GOAL]<br>Relaunch the site.</p>' +
+            '<p>[BRIDGEAI:DECISIONS]</p><ul><li>Use Astro</li><li>Drop Firebase</li></ul><p>[BRIDGEAI:NEXT]<br>Write the about page.</p><p>[BRIDGEAI:END]</p>';
+        document.body.append(user, reply);
+    }, request);
+    await unrelated.getByRole('button', { name: 'Fill brief', exact: true }).click();
+    await unrelated.getByText('Filled 4 fields from Claude’s reply.', { exact: false }).waitFor();
+    assert.equal(await unrelated.getByLabel('Project name', { exact: true }).inputValue(), 'Portfolio redesign');
+    assert.equal(await unrelated.getByLabel('Goal', { exact: true }).inputValue(), 'Relaunch the site.');
+    const decisions = await unrelated.getByLabel('Current decisions', { exact: true }).inputValue();
+    assert.ok(decisions.includes('- Use Astro') && decisions.includes('- Drop Firebase'));
+    await unrelated.getByText('Full transfer preview', { exact: true }).click();
+    const drafted = await unrelated.getByLabel('Full transfer preview', { exact: true }).inputValue();
+    assert.ok(drafted.includes('Write the about page.'));
+    assert.ok(!drafted.includes('[BRIDGEAI:') && !drafted.includes('[BridgeAI brief request]'));
+    await unrelated.getByRole('button', { name: 'Undo fill', exact: true }).click();
+    assert.equal(await unrelated.getByLabel('Goal', { exact: true }).inputValue(), '');
+    unrelated.once('dialog', dialog => dialog.accept());
+    await unrelated.getByRole('button', { name: 'Close project memory', exact: true }).click();
 
     // Continue with the saved project: exact pins and original request survive.
     await destination.getByRole('button', { name: 'Transfer · Keep context' }).click();
@@ -90,7 +140,7 @@ try {
     await destination.getByText('Saved project deleted.', { exact: true }).waitFor();
     assert.equal(await destination.getByLabel('Project', { exact: true }).locator('option').count(), 1);
     assert.deepEqual(errors, []);
-    console.log('Browser checks passed: actual MV3 extension, editor, full-code pinning, save/reopen/delete, oversize block, mobile layout, targeted transfer, second-platform memory.');
+    console.log('Browser checks passed: actual MV3 extension, editor, full-code pinning, save/reopen/delete, oversize block, mobile layout, targeted transfer with auto-insert, load earlier messages, AI-drafted brief with undo, second-platform memory.');
 } catch (error) {
     for (const [i, page] of context.pages().entries()) await page.screenshot({ path: path.join(artifacts, `failure-${i}.png`) }).catch(() => {});
     throw error;

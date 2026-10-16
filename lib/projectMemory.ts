@@ -1,4 +1,5 @@
 import type { Message } from '../adapters/types';
+import { isBriefRequest } from './briefDraft';
 
 export interface SourceMessage {
     id: string;
@@ -36,7 +37,7 @@ export function sameMessage(a: SourceMessage, b: SourceMessage): boolean {
 }
 
 export function newProject(messages: Message[], platform: string, url: string): ProjectMemory {
-    const first = messages.findIndex(message => message.role === 'user' && message.content.trim());
+    const first = messages.findIndex(message => message.role === 'user' && message.content.trim() && !isBriefRequest(message.content));
     return {
         version: 1, id: crypto.randomUUID(), name: 'Untitled project',
         goal: '', requirements: '', decisions: '', progress: '', nextStep: '', workingMaterial: '',
