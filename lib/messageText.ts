@@ -15,7 +15,15 @@ export function readMessageText(element: Element): string {
             return `\n${fence}\n${text}${text.endsWith('\n') ? '' : '\n'}${fence}\n`;
         }
         const content = Array.from(el.childNodes).map(read).join('');
-        return ['p', 'div', 'li', 'ul', 'ol', 'h1', 'h2', 'h3', 'blockquote', 'tr'].includes(tag)
+        if (tag === 'li') {
+            // Keep list markers so steps and bullet points still read as a list.
+            const parent = el.parentElement;
+            const items = Array.from(parent?.children || []).filter(child => child.tagName.toLowerCase() === 'li');
+            const start = Number(parent?.getAttribute('start')) || 1;
+            const marker = parent?.tagName.toLowerCase() === 'ol' ? `${start + items.indexOf(el)}. ` : '- ';
+            return `\n${marker}${content.trim()}\n`;
+        }
+        return ['p', 'div', 'ul', 'ol', 'h1', 'h2', 'h3', 'blockquote', 'tr'].includes(tag)
             ? `\n${content}\n` : tag === 'td' || tag === 'th' ? `${content}\t` : content;
     };
     return read(element).trim();

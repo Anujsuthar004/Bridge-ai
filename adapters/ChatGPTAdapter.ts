@@ -1,5 +1,5 @@
-import { readMessageText } from '../lib/messageText';
-import type { AIAdapter, Message } from './types';
+import { scrapeByRole, type ScrapeResult } from '../lib/scrape';
+import type { AIAdapter } from './types';
 
 /**
  * ChatGPT Adapter
@@ -11,7 +11,8 @@ export class ChatGPTAdapter implements AIAdapter {
 
     // DOM Selectors (updated for 2026)
     private readonly selectors = {
-        messageContainer: '[data-message-author-role]',
+        userMessage: '[data-message-author-role="user"]',
+        assistantMessage: '[data-message-author-role="assistant"]',
         inputTextarea: '#prompt-textarea',
     };
 
@@ -22,25 +23,10 @@ export class ChatGPTAdapter implements AIAdapter {
         );
     }
 
-    scrapeMessages(): Message[] {
-        const messages: Message[] = [];
-        const messageElements = document.querySelectorAll(this.selectors.messageContainer);
-
-        messageElements.forEach((element) => {
-            const role = element.getAttribute('data-message-author-role') as 'user' | 'assistant';
-            const contentElement = element.querySelector('.markdown') || element;
-            const content = readMessageText(contentElement);
-
-            if (content && role) {
-                messages.push({
-                    role,
-                    content,
-                    timestamp: Date.now(),
-                });
-            }
-        });
-
-        return messages;
+    scrapeMessages(): ScrapeResult {
+        // Read the rendered markdown when present, so per-message controls are skipped.
+        return scrapeByRole(this.selectors.userMessage, this.selectors.assistantMessage,
+            element => element.querySelector('.markdown') || element);
     }
 
     getInputElement(): HTMLElement | null {

@@ -23,7 +23,8 @@ test('all platform adapters preserve code text from representative DOM fixtures'
         const dom = new JSDOM(html);
         globalThis.document = dom.window.document;
         globalThis.window = dom.window;
-        const messages = new Adapter().scrapeMessages();
+        const { messages, rolesGuessed } = new Adapter().scrapeMessages();
+        assert.equal(rolesGuessed, false);
         assert.equal(messages.length, 2);
         assert.equal(messages[0].role, 'user');
         assert.equal(messages[1].role, 'assistant');

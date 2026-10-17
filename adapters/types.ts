@@ -1,6 +1,7 @@
 /**
  * Core types for the BridgeAI adapter pattern
  */
+import type { ScrapeResult } from '../lib/scrape';
 
 export type MessageRole = 'user' | 'assistant' | 'system';
 
@@ -34,9 +35,9 @@ export interface AIAdapter {
     isDetected(): boolean;
 
     /**
-     * Scrape all messages from the current conversation
+     * Scrape all messages currently on the page, in conversation order
      */
-    scrapeMessages(): Message[];
+    scrapeMessages(): ScrapeResult;
 
     /**
      * Get the main input element for the chat, so it can be focused after copying context

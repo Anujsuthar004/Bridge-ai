@@ -1,5 +1,5 @@
-import { readMessageText } from '../lib/messageText';
-import type { AIAdapter, Message } from './types';
+import { scrapeByRole, scrapeGuessingRoles, type ScrapeResult } from '../lib/scrape';
+import type { AIAdapter } from './types';
 
 /**
  * Claude Adapter
@@ -14,7 +14,7 @@ export class ClaudeAdapter implements AIAdapter {
         // Claude uses these classes/attributes for messages
         userMessage: '[data-testid="user-message"], .font-user-message, [data-is-human-message="true"]',
         assistantMessage: '[data-testid="assistant-message"], .font-claude-message, [data-is-human-message="false"]',
-        inputTextarea: '[data-testid="prompt-input"], [contenteditable="true"], .ProseMirror',
+        inputTextarea: '[data-testid="prompt-input"], .ProseMirror[contenteditable="true"]',
         // Broader fallback selectors
         conversationTurn: '[data-testid^="chat-message"], .group\\/turn, [class*="turn"], [class*="message"]',
         fallbackMessages: '.prose, .whitespace-pre-wrap, [class*="MessageContent"]',
@@ -24,102 +24,24 @@ export class ClaudeAdapter implements AIAdapter {
         return window.location.hostname.includes('claude.ai');
     }
 
-    scrapeMessages(): Message[] {
-        const messages: Message[] = [];
+    scrapeMessages(): ScrapeResult {
+        // Strategy 1: elements that say who wrote them
+        const byRole = scrapeByRole(this.selectors.userMessage, this.selectors.assistantMessage);
+        if (byRole.messages.length) return byRole;
 
-        // Strategy 1: Try user and assistant message selectors separately
-        const userMessages = document.querySelectorAll(this.selectors.userMessage);
-        const assistantMessages = document.querySelectorAll(this.selectors.assistantMessage);
-
-        if (userMessages.length > 0 || assistantMessages.length > 0) {
-            // Collect all messages with their positions in the DOM
-            const allMessages: { element: Element; isUser: boolean; position: number }[] = [];
-
-            userMessages.forEach((el) => {
-                allMessages.push({
-                    element: el,
-                    isUser: true,
-                    position: this.getElementPosition(el),
-                });
-            });
-
-            assistantMessages.forEach((el) => {
-                allMessages.push({
-                    element: el,
-                    isUser: false,
-                    position: this.getElementPosition(el),
-                });
-            });
-
-            // Sort by position in DOM
-            allMessages.sort((a, b) => a.position - b.position);
-
-            allMessages.forEach(({ element, isUser }) => {
-                const content = readMessageText(element);
-                if (content && content.length > 0) {
-                    messages.push({
-                        role: isUser ? 'user' : 'assistant',
-                        content,
-                        timestamp: Date.now(),
-                    });
-                }
-            });
-
-            if (messages.length > 0) {
-                return messages;
-            }
-        }
-
-        // Strategy 2: Try conversation turn selectors
-        const turns = document.querySelectorAll(this.selectors.conversationTurn);
-
-        if (turns.length > 0) {
-            turns.forEach((turn, index) => {
-                const content = readMessageText(turn);
-                // Determine role from attributes or alternate
-                const isHuman = turn.getAttribute('data-is-human-message') === 'true' ||
-                    turn.querySelector('[data-is-human-message="true"]') !== null ||
-                    index % 2 === 0;
-
-                if (content && content.length > 0) {
-                    messages.push({
-                        role: isHuman ? 'user' : 'assistant',
-                        content,
-                        timestamp: Date.now(),
-                    });
-                }
-            });
-
-            if (messages.length > 0) {
-                return messages;
-            }
-        }
-
-        // Strategy 3: Fallback to prose elements
-        const proseElements = document.querySelectorAll(this.selectors.fallbackMessages);
-
-        proseElements.forEach((element, index) => {
-            const content = readMessageText(element);
-            if (content && content.length > 10) { // Filter out very short/empty elements
-                messages.push({
-                    role: index % 2 === 0 ? 'user' : 'assistant',
-                    content,
-                    timestamp: Date.now(),
-                });
-            }
+        // Strategy 2: conversation turns, using a role marker inside the turn when there is one
+        const turns = scrapeGuessingRoles(this.selectors.conversationTurn, turn => {
+            const marker = turn.closest('[data-is-human-message]') || turn.querySelector('[data-is-human-message]');
+            if (!marker) return null;
+            return marker.getAttribute('data-is-human-message') === 'true' ? 'user' : 'assistant';
         });
+        if (turns.messages.length) return turns;
 
-        return messages;
-    }
-
-    // Helper to get element position in DOM for sorting
-    private getElementPosition(element: Element): number {
-        const rect = element.getBoundingClientRect();
-        return rect.top + window.scrollY;
+        // Strategy 3: any prose block; skip very short elements such as labels
+        return scrapeGuessingRoles(this.selectors.fallbackMessages, () => null, 11);
     }
 
     getInputElement(): HTMLElement | null {
-        // Try multiple selectors
         const selectors = [
             this.selectors.inputTextarea,
             'div[contenteditable="true"]',
