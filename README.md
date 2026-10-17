@@ -4,6 +4,7 @@
 
 Carry a reviewed project brief, pinned messages, and exact working material between ChatGPT, Claude, and Gemini—even when your current AI has hit its limit.
 
+[![CI](https://github.com/Anujsuthar004/Bridge-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Anujsuthar004/Bridge-ai/actions/workflows/ci.yml)
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript)
