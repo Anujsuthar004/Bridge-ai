@@ -1,3 +1,4 @@
+import { findChatInput } from '../lib/insertText';
 import { scrapeByRole, type ScrapeResult } from '../lib/scrape';
 import type { AIAdapter } from './types';
 
@@ -13,7 +14,16 @@ export class ChatGPTAdapter implements AIAdapter {
     private readonly selectors = {
         userMessage: '[data-message-author-role="user"]',
         assistantMessage: '[data-message-author-role="assistant"]',
-        inputTextarea: '#prompt-textarea',
+        // ProseMirror composer; its id and test id have changed before, so keep broader fallbacks.
+        input: [
+            '#prompt-textarea',
+            '[data-testid="prompt-textarea"]',
+            'form .ProseMirror[contenteditable="true"]',
+            '.ProseMirror[contenteditable="true"]',
+            'form [contenteditable="true"]',
+            'form textarea',
+            '[contenteditable="true"]',
+        ],
     };
 
     isDetected(): boolean {
@@ -30,6 +40,6 @@ export class ChatGPTAdapter implements AIAdapter {
     }
 
     getInputElement(): HTMLElement | null {
-        return document.querySelector(this.selectors.inputTextarea) as HTMLElement | null;
+        return findChatInput(this.selectors.input);
     }
 }
