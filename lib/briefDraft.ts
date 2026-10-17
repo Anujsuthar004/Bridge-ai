@@ -18,6 +18,11 @@ export type BriefField = typeof SECTIONS[number][1];
 export type BriefDraft = Partial<Record<BriefField, string>>;
 
 const label = (key: string) => `[BRIDGEAI:${key}]`;
+// AIs restyle the labels: markdown-escaped brackets (\[BRIDGEAI:GOAL\]), bold, extra spaces, lower case,
+// or no brackets at all. Accept all of those, and don't require the closing END label.
+const LABEL = /\\?\[?\s*BRIDGEAI\s*:\s*([A-Za-z]+)\s*\\?\]?/gi;
+const KEYS: readonly string[] = SECTIONS.map(([key]) => key);
+const labelsIn = (content: string) => Array.from(content.matchAll(LABEL), match => match[1].toUpperCase());
 
 export function buildBriefRequest(): string {
     return `${BRIEF_REQUEST_START}\n` +
@@ -32,23 +37,35 @@ export function isBriefRequest(content: string): boolean {
     return content.trimStart().startsWith(BRIEF_REQUEST_START);
 }
 
+/** A reply counts once it uses at least two of the section labels. */
 export function isBriefReply(content: string): boolean {
-    return content.includes(label('GOAL')) && content.includes(label(END));
+    return new Set(labelsIn(content).filter(key => KEYS.includes(key))).size >= 2;
 }
+
+const afterLatestRequest = (messages: Message[]) =>
+    messages.slice(messages.map(message => isBriefRequest(message.content)).lastIndexOf(true) + 1);
 
 /** The assistant reply to the most recent brief request, if it has arrived. */
 export function findBriefReply(messages: Message[]): Message | undefined {
-    const request = messages.map(message => isBriefRequest(message.content)).lastIndexOf(true);
-    return messages.slice(request + 1).reverse().find(message => message.role === 'assistant' && isBriefReply(message.content));
+    return afterLatestRequest(messages).reverse().find(message => message.role === 'assistant' && isBriefReply(message.content));
+}
+
+/** True when the AI has answered the latest request, even if the answer isn't a readable brief. */
+export function hasReplyAfterRequest(messages: Message[]): boolean {
+    return messages.some(message => isBriefRequest(message.content)) &&
+        afterLatestRequest(messages).some(message => message.role === 'assistant');
 }
 
 export function parseBriefReply(content: string): BriefDraft {
-    const parts = content.split(/\[BRIDGEAI:([A-Z]+)\]/);
+    const parts = content.split(LABEL);
     const draft: BriefDraft = {};
     for (let i = 1; i < parts.length; i += 2) {
-        if (parts[i] === END) break;
-        const field = SECTIONS.find(([key]) => key === parts[i])?.[1];
-        const value = parts[i + 1].split('\n').filter(line => !/^\s*`{3,}/.test(line)).join('\n').trim();
+        const key = parts[i].toUpperCase();
+        if (key === END) break;
+        const field = SECTIONS.find(([section]) => section === key)?.[1];
+        const value = parts[i + 1].split('\n').filter(line => !/^\s*`{3,}/.test(line)).join('\n')
+            // Leftovers of a bold or heading label, and a colon after it, when the reply was pasted as markdown.
+            .replace(/^\s*(\*\*|__)?\s*:?/, '').replace(/\s*(\*\*|__|#+)\s*$/, '').trim();
         if (field && value && !/^unknown\.?$/i.test(value)) draft[field] = value;
     }
     return draft;

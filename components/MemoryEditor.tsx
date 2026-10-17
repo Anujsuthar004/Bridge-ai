@@ -18,6 +18,8 @@ interface Props {
     initialMemory?: ProjectMemory;
     /** Fill the fields from the AI's brief reply as soon as the editor opens. */
     fillFromBrief?: boolean;
+    /** A brief reply the user pasted, used instead of searching the page. */
+    briefText?: string;
     onSave: (project: ProjectMemory) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
     onTransfer: (project: ProjectMemory, prompt: string, destination: PlatformOption) => Promise<void>;
@@ -53,7 +55,7 @@ export function MemoryEditor(props: Props) {
     const stopLoading = useRef<AbortController | null>(null);
     const dialog = useRef<HTMLDivElement>(null);
     const result = useMemo(() => buildHandoff(messages, sourcePlatform, sourceUrl, memory, budget), [messages, sourcePlatform, sourceUrl, memory, budget]);
-    const briefReply = useMemo(() => findBriefReply(messages), [messages]);
+    const briefReply = useMemo(() => props.briefText ?? findBriefReply(messages)?.content, [messages, props.briefText]);
     const dirty = JSON.stringify(memory) !== savedSnapshot;
     const meaningful = !!(memory.originalRequest || memory.pins.length || fields.some(([key]) => memory[key].trim()));
     const canTransfer = meaningful && !!memory.name.trim() && !result.overBudget && !busy && !loading;
@@ -62,7 +64,7 @@ export function MemoryEditor(props: Props) {
 
     const fillBrief = () => {
         if (!briefReply) return;
-        const { memory: next, filled } = applyBrief(memory, parseBriefReply(briefReply.content));
+        const { memory: next, filled } = applyBrief(memory, parseBriefReply(briefReply));
         if (!filled.length) { setError(`Couldn’t read the brief in ${sourcePlatform}’s reply. Copy the parts you need into the fields.`); return; }
         setBeforeFill(memory); setMemory(next); setError('');
         setStatus(`Filled ${filled.length} field${filled.length === 1 ? '' : 's'} from ${sourcePlatform}’s reply. Review them before transferring.`);

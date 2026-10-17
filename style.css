@@ -2,50 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .bridge-btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 
-           text-sm font-medium text-white 
-           bg-gradient-to-r from-bridge-primary to-bridge-secondary 
-           rounded-lg shadow-lg 
-           hover:shadow-xl hover:scale-105 
-           transition-all duration-200 ease-out
-           focus:outline-none focus:ring-2 focus:ring-bridge-primary focus:ring-offset-2;
-  }
-
-  .bridge-btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2
-           text-sm font-medium text-bridge-primary
-           bg-transparent border border-bridge-primary/30
-           rounded-lg
-           hover:bg-bridge-primary/10 hover:border-bridge-primary
-           transition-all duration-200 ease-out
-           focus:outline-none focus:ring-2 focus:ring-bridge-primary focus:ring-offset-2;
-  }
-
-  .bridge-overlay {
-    @apply fixed inset-0 z-[999999] 
-           flex items-center justify-center 
-           bg-black/60 backdrop-blur-sm 
-           animate-fade-in;
-  }
-
-  .bridge-modal {
-    @apply bg-white dark:bg-gray-900 
-           rounded-2xl shadow-2xl 
-           p-6 max-w-md w-full mx-4
-           animate-slide-up
-           border border-gray-200 dark:border-gray-700;
-  }
-
-  .bridge-card {
-    @apply p-4 rounded-xl 
-           bg-gradient-to-br from-gray-50 to-gray-100 
-           dark:from-gray-800 dark:to-gray-900
-           border border-gray-200 dark:border-gray-700
-           hover:shadow-lg transition-shadow duration-200;
-  }
+/* Content-script UI uses plain CSS, not Tailwind utilities. Host pages built with Tailwind v4
+   register --tw-* custom properties document-wide, and those registrations reach into our shadow
+   DOM, turning Tailwind v3 gradients, rings and shadows invalid (a white-on-white button). */
+.bridge-btn, .bridge-btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px 16px; border-radius: 8px; cursor: pointer;
+  font: 500 14px/20px system-ui, sans-serif;
+  transition: transform .2s ease-out, box-shadow .2s ease-out, background-color .2s ease-out, border-color .2s ease-out;
 }
+.bridge-btn {
+  color: #fff; border: 0;
+  background: linear-gradient(to right, #6366f1, #8b5cf6);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);
+}
+.bridge-btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 20px 25px -5px rgb(0 0 0 / .1), 0 8px 10px -6px rgb(0 0 0 / .1); }
+.bridge-btn-ghost { color: #6366f1; background: transparent; border: 1px solid rgb(99 102 241 / .3); }
+.bridge-btn-ghost:hover:not(:disabled) { background: rgb(99 102 241 / .1); border-color: #6366f1; }
+.bridge-btn:focus-visible, .bridge-btn-ghost:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+.bridge-launcher { position: fixed; bottom: 24px; right: 24px; z-index: 999996; box-shadow: 0 25px 50px -12px rgb(0 0 0 / .25); }
+
+.bridge-overlay {
+  position: fixed; inset: 0; z-index: 999999;
+  display: flex; align-items: center; justify-content: center;
+  background: rgb(0 0 0 / .6); backdrop-filter: blur(4px);
+  animation: bridge-fade-in .2s ease-out;
+}
+.bridge-modal {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / .25);
+  padding: 24px; width: 100%; max-width: 28rem; margin: 0 16px;
+  animation: bridge-slide-up .3s ease-out;
+}
+@keyframes bridge-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bridge-slide-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 .bridge-memory { max-width: 1060px; max-height: 92vh; display: flex; flex-direction: column; padding: 0; color: #172033; font: 14px/1.5 system-ui, sans-serif; background: #fff; }
 .bridge-memory-header, .bridge-memory-footer { padding: 20px 24px; flex-shrink: 0; }

@@ -1,3 +1,4 @@
+import { findChatInput } from '../lib/insertText';
 import { scrapeByRole, scrapeGuessingRoles, type ScrapeResult } from '../lib/scrape';
 import type { AIAdapter } from './types';
 
@@ -14,7 +15,13 @@ export class ClaudeAdapter implements AIAdapter {
         // Claude uses these classes/attributes for messages
         userMessage: '[data-testid="user-message"], .font-user-message, [data-is-human-message="true"]',
         assistantMessage: '[data-testid="assistant-message"], .font-claude-message, [data-is-human-message="false"]',
-        inputTextarea: '[data-testid="prompt-input"], .ProseMirror[contenteditable="true"]',
+        input: [
+            '[data-testid="prompt-input"]',
+            '.ProseMirror[contenteditable="true"]',
+            'fieldset [contenteditable="true"]',
+            'div[contenteditable="true"]',
+            'textarea',
+        ],
         // Broader fallback selectors
         conversationTurn: '[data-testid^="chat-message"], .group\\/turn, [class*="turn"], [class*="message"]',
         fallbackMessages: '.prose, .whitespace-pre-wrap, [class*="MessageContent"]',
@@ -42,19 +49,6 @@ export class ClaudeAdapter implements AIAdapter {
     }
 
     getInputElement(): HTMLElement | null {
-        const selectors = [
-            this.selectors.inputTextarea,
-            'div[contenteditable="true"]',
-            'textarea',
-        ];
-
-        for (const selector of selectors) {
-            const element = document.querySelector(selector) as HTMLElement | null;
-            if (element) {
-                return element;
-            }
-        }
-
-        return null;
+        return findChatInput(this.selectors.input);
     }
 }

@@ -16,18 +16,35 @@ const errors = [];
 context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
 const code = 'function contact() {\n  return "exact working code";\n\n}\n';
 const fixtures = {
-    'chatgpt.com': `<div data-message-author-role="user">Build a free portfolio. Keep it mobile friendly.</div><div data-message-author-role="assistant"><pre><code>${code}</code></pre></div><div data-message-author-role="user">Debug the contact form next.</div><textarea id="prompt-textarea"></textarea>`,
-    'claude.ai': '<div data-testid="user-message">Continue my portfolio</div><div data-testid="assistant-message">The contact form is fixed.</div><div contenteditable="true" data-testid="prompt-input"></div>',
+    'chatgpt.com': `<div data-message-author-role="user">Build a free portfolio. Keep it mobile friendly.</div><div data-message-author-role="assistant"><pre><code>${code}</code></pre></div><div data-message-author-role="user">Debug the contact form next.</div>` +
+        // ChatGPT has renamed its composer before: no #prompt-textarea, a hidden fallback textarea, and the real editor.
+        '<form><textarea name="prompt-textarea" style="display:none"></textarea><div class="ProseMirror" contenteditable="true"></div></form>',
+    // Like ProseMirror and Quill, this composer takes over paste and applies it a moment later, at the caret.
+    'claude.ai': '<div data-testid="user-message">Continue my portfolio</div><div data-testid="assistant-message">The contact form is fixed.</div><div contenteditable="true" data-testid="prompt-input"></div>' +
+        '<script>document.querySelector("[data-testid=prompt-input]").addEventListener("paste", event => { event.preventDefault(); const text = event.clipboardData.getData("text/plain"); setTimeout(() => document.execCommand("insertText", false, text), 0); });</script>',
     'gemini.google.com': '<user-query>Continue my portfolio</user-query><model-response>The form is tested.</model-response><div class="ql-editor" contenteditable="true"></div>',
 };
+// ChatGPT and Claude are built with Tailwind v4, which registers these custom properties for the
+// whole document. Registrations cross shadow DOM, so they must not break BridgeAI's own styles.
+const siteCss = '<style>' + [
+    ['--tw-gradient-from', '<color>', '#0000'], ['--tw-gradient-via', '<color>', '#0000'], ['--tw-gradient-to', '<color>', '#0000'],
+    ['--tw-gradient-from-position', '<length-percentage>', '0%'], ['--tw-gradient-via-position', '<length-percentage>', '50%'],
+    ['--tw-gradient-to-position', '<length-percentage>', '100%'],
+].map(([name, syntax, initial]) => `@property ${name}{syntax:"${syntax}";inherits:false;initial-value:${initial}}`).join('') +
+    '@property --tw-gradient-stops{syntax:"*";inherits:false}</style>';
 await context.route('https://**/*', route => {
     const host = new URL(route.request().url()).hostname;
-    return route.fulfill({contentType: 'text/html', body: `<html><head><title>BridgeAI test fixture</title></head><body style="background:#eef2f7;padding:40px;font-family:system-ui"><h1>Conversation fixture</h1>${fixtures[host] || ''}</body></html>`});
+    return route.fulfill({contentType: 'text/html', body: `<html><head><title>BridgeAI test fixture</title>${siteCss}</head><body style="background:#eef2f7;padding:40px;font-family:system-ui"><h1>Conversation fixture</h1>${fixtures[host] || ''}</body></html>`});
 });
 try {
     const page = await context.newPage();
     await page.goto('https://chatgpt.com/c/bridgeai-test');
-    await page.getByRole('button', { name: 'Transfer · Keep context' }).click();
+    const launcher = page.getByRole('button', { name: 'Transfer · Keep context' });
+    // The launcher must keep its brand background on sites that register Tailwind v4 properties.
+    assert.ok((await launcher.evaluate(el => getComputedStyle(el).backgroundImage)).includes('rgb(99, 102, 241)'), 'launcher lost its background');
+    await launcher.click();
+    assert.ok((await page.getByRole('button', { name: 'Continue in Claude', exact: true })
+        .evaluate(el => getComputedStyle(el).backgroundImage)).includes('rgb(99, 102, 241)'), 'primary buttons lost their background');
     await page.getByLabel('Project name', { exact: true }).fill('Portfolio');
     await page.getByLabel('Goal', { exact: true }).fill('Finish my internship portfolio');
     await page.getByLabel('Current decisions', { exact: true }).fill('Use Supabase; Firebase was rejected.');
@@ -119,6 +136,19 @@ try {
     unrelated.once('dialog', dialog => dialog.accept());
     await unrelated.getByRole('button', { name: 'Close project memory', exact: true }).click();
 
+    // When the reply on the page can't be read, the user can paste it instead.
+    await unrelated.getByRole('button', { name: 'Transfer · Keep context' }).click();
+    await unrelated.getByRole('button', { name: 'Ask Claude to draft it', exact: true }).click();
+    await unrelated.getByRole('button', { name: 'Fill brief', exact: true }).click();
+    // The new request hasn't been sent, so the earlier reply on the page must not be reused.
+    await unrelated.getByText('The brief request hasn’t been sent yet.', { exact: false }).waitFor();
+    await unrelated.getByLabel('Pasted brief reply', { exact: true }).fill('**[BRIDGEAI:GOAL]**\nPasted goal.\n**[BRIDGEAI:NEXT]**\nPasted next step.');
+    await unrelated.getByRole('button', { name: 'Fill from pasted reply', exact: true }).click();
+    assert.equal(await unrelated.getByLabel('Goal', { exact: true }).inputValue(), 'Pasted goal.');
+    assert.equal(await unrelated.getByLabel('Next action', { exact: true }).inputValue(), 'Pasted next step.');
+    unrelated.once('dialog', dialog => dialog.accept());
+    await unrelated.getByRole('button', { name: 'Close project memory', exact: true }).click();
+
     // Continue with the saved project: exact pins and original request survive.
     await destination.getByRole('button', { name: 'Transfer · Keep context' }).click();
     assert.equal(await destination.getByLabel('Project name', { exact: true }).inputValue(), 'Portfolio');
@@ -139,6 +169,15 @@ try {
     await destination.getByRole('button', { name: 'Delete saved project', exact: true }).click();
     await destination.getByText('Saved project deleted.', { exact: true }).waitFor();
     assert.equal(await destination.getByLabel('Project', { exact: true }).locator('option').count(), 1);
+    // ChatGPT: the brief request goes into the visible editor, not the hidden fallback textarea.
+    const chat = await context.newPage();
+    await chat.goto('https://chatgpt.com/c/second');
+    await chat.getByRole('button', { name: 'Transfer · Keep context' }).click();
+    await chat.getByRole('button', { name: 'Ask ChatGPT to draft it', exact: true }).click();
+    await chat.getByText('The brief request is in the chat box.', { exact: false }).waitFor();
+    assert.ok((await chat.locator('.ProseMirror').textContent()).startsWith('[BridgeAI brief request]'));
+    assert.equal(await chat.locator('textarea[name="prompt-textarea"]').inputValue(), '');
+
     assert.deepEqual(errors, []);
     console.log('Browser checks passed: actual MV3 extension, editor, full-code pinning, save/reopen/delete, oversize block, mobile layout, targeted transfer with auto-insert, load earlier messages, AI-drafted brief with undo, second-platform memory.');
 } catch (error) {
