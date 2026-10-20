@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- BridgeAI: one chat handing off to another. Source for assets/icon.png. -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="#4f46e5"/>
+  <path d="M144 284 L120 344 L204 292Z" fill="#fff"/>
+  <rect x="96" y="116" width="240" height="176" rx="56" fill="#fff"/>
+  <path d="M368 380 L392 440 L308 388Z" fill="#c7d2fe"/>
+  <rect x="176" y="216" width="240" height="176" rx="56" fill="#c7d2fe" stroke="#4f46e5" stroke-width="20"/>
+  <path d="M258 304 H330 M302 276 L332 304 L302 332" fill="none" stroke="#4f46e5" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
