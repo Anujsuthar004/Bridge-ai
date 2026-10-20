@@ -54,3 +54,29 @@ test('brief drafting messages stay out of the handoff and the original request',
     assert.ok(!result.prompt.includes('[BRIDGEAI:'));
     assert.ok(result.prompt.includes('2 brief-drafting messages excluded'));
 });
+
+test('replies that restyle the labels or drop END are still read', () => {
+    const variants = [
+        '\\[BRIDGEAI:GOAL\\]\nShip it.\n\\[BRIDGEAI:NEXT\\]\nTest it.',
+        '**[BRIDGEAI:GOAL]**\nShip it.\n**[BRIDGEAI:NEXT]**\nTest it.',
+        '[ BridgeAI : goal ]\nShip it.\n[ BridgeAI : next ]\nTest it.',
+        'BRIDGEAI:GOAL\nShip it.\nBRIDGEAI:NEXT\nTest it.',
+        '### [BRIDGEAI:GOAL]\nShip it.\n### [BRIDGEAI:NEXT]\nTest it.',
+    ];
+    for (const text of variants) {
+        assert.ok(findBriefReply([msg('user', buildBriefRequest()), msg('assistant', text)]), text);
+        assert.deepEqual(parseBriefReply(text), { goal: 'Ship it.', nextStep: 'Test it.' }, text);
+    }
+});
+
+test('a reply with a single label, or ordinary text, is not mistaken for a brief', () => {
+    assert.equal(findBriefReply([msg('user', buildBriefRequest()), msg('assistant', 'Sure! [BRIDGEAI:GOAL] coming up.')]), undefined);
+    assert.equal(findBriefReply([msg('assistant', 'The BridgeAI handoff worked.')]), undefined);
+});
+
+test('the reply after the request is noticed even when it is not a readable brief', async () => {
+    const { hasReplyAfterRequest } = await import('../lib/briefDraft.ts');
+    assert.equal(hasReplyAfterRequest([msg('user', buildBriefRequest())]), false);
+    assert.equal(hasReplyAfterRequest([msg('user', buildBriefRequest()), msg('assistant', 'I cannot do that.')]), true);
+    assert.equal(hasReplyAfterRequest([msg('assistant', 'Hello')]), false);
+});

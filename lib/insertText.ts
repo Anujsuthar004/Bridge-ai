@@ -59,3 +59,21 @@ export function waitForElement<T>(find: () => T | null, timeoutMs = 15000): Prom
         observer.observe(document.body, { childList: true, subtree: true });
     });
 }
+
+const isVisible = (el: HTMLElement) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+
+/**
+ * The chat input: the first selector, in priority order, with a visible match. Sites keep a hidden
+ * fallback textarea next to the real editor, and rename their composer often, so try several.
+ * Falls back to the first match at all when nothing is visible (for example while the page loads).
+ */
+export function findChatInput(selectors: string[]): HTMLElement | null {
+    let first: HTMLElement | null = null;
+    for (const selector of selectors) {
+        const matches = Array.from(document.querySelectorAll<HTMLElement>(selector));
+        const visible = matches.find(isVisible);
+        if (visible) return visible;
+        first ??= matches[0] ?? null;
+    }
+    return first;
+}

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import cssText from 'data-text:~style.css';
 import { getActiveAdapter, type AIAdapter, type ContextPayload } from '~adapters';
 import { MemoryEditor } from '~components/MemoryEditor';
-import { buildBriefRequest, findBriefReply } from '~lib/briefDraft';
+import { buildBriefRequest, findBriefReply, hasReplyAfterRequest, isBriefReply, isBriefRequest } from '~lib/briefDraft';
 import { inputHasText, insertIntoInput, isInputEmpty, waitForElement } from '~lib/insertText';
 import { findScrollContainer, loadEarlierMessages } from '~lib/loadHistory';
 import { listProjects, saveProject, deleteProject } from '~lib/storage';
@@ -19,6 +19,17 @@ export const getShadowHostId: PlasmoGetShadowHostId = () => 'bridge-ai-root';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/** Put text in the chat box. Returns null on success, or why it failed, in words for the user. */
+async function tryInsert(adapter: AIAdapter, text: string): Promise<string | null> {
+    const input = adapter.getInputElement();
+    const reason = !input ? 'BridgeAI couldn’t find the chat box'
+        : !isInputEmpty(input) ? 'the chat box already has text'
+        : !(await insertIntoInput(input, text)) ? 'the chat box didn’t accept the text' : null;
+    // Details for bug reports: which element was used and what it looks like.
+    if (reason) console.warn('[BridgeAI] insert failed:', reason, input ? input.outerHTML.slice(0, 300) : '(no element)');
+    return reason;
+}
+
 function TransferUI() {
     const [adapter, setAdapter] = useState<AIAdapter | null>(null);
     const [projects, setProjects] = useState<ProjectMemory[]>([]);
@@ -32,6 +43,12 @@ function TransferUI() {
     const [draft, setDraft] = useState<ProjectMemory | null>(null);
     const [draftStatus, setDraftStatus] = useState('');
     const [fillOnOpen, setFillOnOpen] = useState(false);
+    // Shown when the reply can't be found on the page, so the user can paste it instead.
+    const [pasteOpen, setPasteOpen] = useState(false);
+    const [pastedReply, setPastedReply] = useState('');
+    // Brief requests already on the page when the user asked, so an older reply is never reused.
+    const [requestsBefore, setRequestsBefore] = useState(0);
+    const countRequests = () => adapter ? adapter.scrapeMessages().messages.filter(message => isBriefRequest(message.content)).length : 0;
 
     useEffect(() => {
         setAdapter(getActiveAdapter());
@@ -51,7 +68,11 @@ function TransferUI() {
             input = adapter.getInputElement();
             if (!input || !inputHasText(input, text)) ok = !!input && isInputEmpty(input) && await insertIntoInput(input, text);
         }
-        if (!ok) { setArrivalStatus('BridgeAI couldn’t insert the context automatically. Use Copy context and paste it.'); return; }
+        if (!ok) {
+            console.warn('[BridgeAI] insert failed:', input ? input.outerHTML.slice(0, 300) : '(no element)');
+            setArrivalStatus('BridgeAI couldn’t insert the context automatically (the chat box didn’t accept the text). Use Copy context and paste it.');
+            return;
+        }
         setInserted(true);
         setArrivalStatus('Inserted into the chat box. Review it, then press send.');
         // The text is in place, so a reload of this tab should not insert it again.
@@ -81,7 +102,10 @@ function TransferUI() {
             setError('');
         } catch { setError('Could not read project memory. Reload the extension and try again.'); }
     };
-    const closeEditor = () => { setSnapshot(null); setInitialProjectId(undefined); setDraft(null); setFillOnOpen(false); };
+    const closeEditor = () => {
+        setSnapshot(null); setInitialProjectId(undefined); setDraft(null); setFillOnOpen(false);
+        setPasteOpen(false); setPastedReply('');
+    };
 
     const loadEarlier = async (signal: AbortSignal) => {
         if (!adapter) return '';
@@ -101,21 +125,34 @@ function TransferUI() {
         if (!adapter) return;
         setDraft(memory);
         setSnapshot(null);
+        setRequestsBefore(countRequests());
+        setPasteOpen(false); setPastedReply('');
         const request = buildBriefRequest();
-        const input = adapter.getInputElement();
-        if (input && isInputEmpty(input) && await insertIntoInput(input, request)) {
+        const failure = await tryInsert(adapter, request);
+        if (!failure) {
             setDraftStatus(`The brief request is in the chat box. Send it, wait for ${adapter.platformName} to finish replying, then click Fill brief.`);
             return;
         }
         try {
             await navigator.clipboard.writeText(request);
-            setDraftStatus(`The brief request was copied. Paste it into the chat, send it, wait for the reply, then click Fill brief.`);
+            setDraftStatus(`BridgeAI couldn’t put the request in the chat box (${failure}), so it was copied instead. Paste it into the chat, send it, wait for the reply, then click Fill brief.`);
         } catch { setDraftStatus('BridgeAI couldn’t place the brief request. Clear the chat box, then go back to the editor and try again.'); }
     };
     const fillBrief = () => {
         if (!adapter) return;
-        if (!findBriefReply(adapter.scrapeMessages().messages)) {
-            setDraftStatus(`No brief reply found yet. Wait for ${adapter.platformName} to finish replying, then try again.`);
+        const { messages } = adapter.scrapeMessages();
+        const sent = messages.filter(message => isBriefRequest(message.content)).length > requestsBefore;
+        if (sent && findBriefReply(messages)) { setPastedReply(''); openEditor(true); return; }
+        setPasteOpen(true);
+        setDraftStatus(!sent
+            ? `The brief request hasn’t been sent yet. Send it, wait for ${adapter.platformName} to reply, then click Fill brief, or paste the reply below.`
+            : hasReplyAfterRequest(messages)
+            ? `BridgeAI found ${adapter.platformName}’s reply but couldn’t read the brief labels in it. Copy the reply (its copy button works) and paste it below.`
+            : `No brief reply found yet. Wait for ${adapter.platformName} to finish replying and try again, or paste the reply below.`);
+    };
+    const fillFromPasted = () => {
+        if (!isBriefReply(pastedReply)) {
+            setDraftStatus('That text doesn’t contain the brief labels, such as [BRIDGEAI:GOAL]. Paste the whole reply.');
             return;
         }
         openEditor(true);
@@ -131,11 +168,16 @@ function TransferUI() {
     };
     if (!adapter) return null;
     return <>
-        <button onClick={() => openEditor()} className="fixed bottom-6 right-6 z-[999996] bridge-btn shadow-2xl">Transfer · Keep context</button>
+        <button onClick={() => openEditor()} className="bridge-btn bridge-launcher">Transfer · Keep context</button>
         {error && <div className="bridge-arrival" role="alert">{error}<button className="bridge-btn-ghost" onClick={() => setError('')}>Dismiss</button></div>}
         {draft && !snapshot && <section className="bridge-arrival" aria-label="Brief drafting">
             <strong>Drafting your brief with {adapter.platformName}</strong><p role="status">{draftStatus}</p>
-            <div className="bridge-actions"><button className="bridge-btn" onClick={fillBrief}>Fill brief</button>
+            {pasteOpen && <textarea aria-label="Pasted brief reply" placeholder={`Paste ${adapter.platformName}’s reply here`}
+                value={pastedReply} onChange={event => setPastedReply(event.target.value)} />}
+            <div className="bridge-actions">
+                {pasteOpen && pastedReply.trim()
+                    ? <button className="bridge-btn" onClick={fillFromPasted}>Fill from pasted reply</button>
+                    : <button className="bridge-btn" onClick={fillBrief}>Fill brief</button>}
                 <button className="bridge-btn-ghost" onClick={() => openEditor()}>Back to editor</button></div>
         </section>}
         {pending && !snapshot && !draft && <section className="bridge-arrival" aria-label="Incoming project context">
@@ -154,7 +196,7 @@ function TransferUI() {
         {snapshot && <MemoryEditor messages={snapshot.scrape.messages} rolesGuessed={snapshot.scrape.rolesGuessed}
             sourcePlatform={adapter.platformName} sourceUrl={snapshot.url}
             platformId={adapter.platformId} projects={projects} initialProjectId={initialProjectId}
-            initialMemory={draft ?? undefined} fillFromBrief={fillOnOpen}
+            initialMemory={draft ?? undefined} fillFromBrief={fillOnOpen} briefText={fillOnOpen && pastedReply.trim() ? pastedReply : undefined}
             onClose={closeEditor}
             onLoadEarlier={loadEarlier}
             onRequestDraft={requestDraft}

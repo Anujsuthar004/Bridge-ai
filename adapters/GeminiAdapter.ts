@@ -1,3 +1,4 @@
+import { findChatInput } from '../lib/insertText';
 import { scrapeByRole, scrapeGuessingRoles, type ScrapeResult } from '../lib/scrape';
 import type { AIAdapter } from './types';
 
@@ -14,6 +15,14 @@ export class GeminiAdapter implements AIAdapter {
         userMessage: 'user-query, .user-message',
         assistantMessage: 'model-response, .model-message',
         fallbackTurns: '.conversation-turn, [data-message-id]',
+        // Gemini wraps its Quill editor in a <rich-textarea> element; target the editable part.
+        input: [
+            'rich-textarea .ql-editor',
+            '.ql-editor',
+            'div[contenteditable="true"][role="textbox"]',
+            'div[contenteditable="true"]',
+            'textarea',
+        ],
     };
 
     isDetected(): boolean {
@@ -28,21 +37,6 @@ export class GeminiAdapter implements AIAdapter {
     }
 
     getInputElement(): HTMLElement | null {
-        // Gemini wraps its Quill editor in a <rich-textarea> element; target the editable part.
-        const selectors = [
-            'rich-textarea .ql-editor',
-            '.ql-editor',
-            'div[contenteditable="true"][role="textbox"]',
-            'div[contenteditable="true"]',
-        ];
-
-        for (const selector of selectors) {
-            const element = document.querySelector(selector) as HTMLElement | null;
-            if (element) {
-                return element;
-            }
-        }
-
-        return null;
+        return findChatInput(this.selectors.input);
     }
 }

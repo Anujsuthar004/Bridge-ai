@@ -1,6 +1,6 @@
 # BridgeAI Privacy Policy
 
-BridgeAI processes conversation text locally in your browser. It does not operate an external backend, collect analytics, or call a summarization API.
+BridgeAI processes conversation text locally in your browser. It does not operate an external backend, collect analytics, or call any AI or summarization API.
 
 ## What is stored
 
@@ -12,9 +12,13 @@ Pending transfer prompts are stored separately and bound to the destination tab.
 
 ## Where data goes
 
-BridgeAI copies a handoff to your system clipboard only when you click a copy button. Clipboard contents may be accessible to other applications or your operating system's clipboard history. BridgeAI does not send the prompt automatically. When you paste and submit it, the destination AI provider receives it under that provider's policies.
+When a transfer arrives, BridgeAI places the handoff in the destination's chat box. It never presses send, and it does not overwrite text you have already typed. When you submit the handoff, the destination AI provider receives it under that provider's policies.
 
-Images, files, and hidden/unloaded messages are not automatically transferred. Source conversation links included in the handoff may themselves contain private identifiers. Review the preview before copying or submitting.
+If you choose "Ask … to draft it", BridgeAI places a brief request in your current chat box. Nothing is sent unless you send it; if you do, that request goes to the provider you are already using, which then reads its own conversation. BridgeAI reads the reply from the page to fill your project fields.
+
+BridgeAI writes to your system clipboard only after you click a button: Copy context, or as a fallback when text cannot be placed in the chat box. Clipboard contents may be accessible to other applications or your operating system's clipboard history.
+
+Images, files, and hidden/unloaded messages are not automatically transferred. "Load earlier messages" only scrolls the conversation you are viewing so the page loads older messages. Source conversation links included in the handoff may themselves contain private identifiers. Review the preview before copying or submitting.
 
 ## Your controls
 
