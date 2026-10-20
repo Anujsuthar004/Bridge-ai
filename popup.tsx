@@ -1,4 +1,5 @@
 import './style.css';
+import logo from 'data-base64:~assets/icon.png';
 import { PLATFORMS } from '~adapters/types';
 
 function IndexPopup() {
@@ -6,9 +7,7 @@ function IndexPopup() {
     <div className="w-80 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-[320px]">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-bridge-primary to-bridge-secondary flex items-center justify-center shadow-lg">
-          <span className="text-white text-xl">🌉</span>
-        </div>
+        <img src={logo} alt="" className="w-10 h-10" />
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-white">BridgeAI</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">Switch AI. Keep your progress.</p>
