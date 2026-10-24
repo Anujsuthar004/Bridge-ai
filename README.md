@@ -1,11 +1,13 @@
-# 🌉 BridgeAI
+<p align="center"><img src="assets/logo.svg" alt="BridgeAI logo" width="96" height="96"></p>
+
+# BridgeAI
 
 **Switch AI. Keep your progress.**
 
 Carry a reviewed project brief, pinned messages, and exact working material between ChatGPT, Claude, and Gemini—even when your current AI has hit its limit.
 
 [![CI](https://github.com/Anujsuthar004/Bridge-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Anujsuthar004/Bridge-ai/actions/workflows/ci.yml)
-![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-Install-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/okkinckngfaogmdjbcbjhpoafiiffkpn)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript)
 
@@ -36,6 +38,10 @@ Carry a reviewed project brief, pinned messages, and exact working material betw
 ---
 
 ## 🚀 Installation
+
+### From the Chrome Web Store
+
+Install [BridgeAI from the Chrome Web Store](https://chromewebstore.google.com/detail/okkinckngfaogmdjbcbjhpoafiiffkpn).
 
 ### From Source
 
@@ -81,7 +87,7 @@ Use Node.js 22.13+ (or a current Node.js 24+ release) for the development and te
 
 Only text present in the page DOM is captured. Use **Load earlier messages** in the editor to pull in older messages from long chats. Images, attached files, hidden messages, and provider-side memory are not transferred. Re-upload files at the destination. Platform DOM changes can require adapter updates.
 
-Project memory is explicitly edited by the user; this release does not automatically infer decisions or perform AI summarization. Selected code retains its captured whitespace, but this is not a byte-for-byte export of original uploaded files. Budgets measure JavaScript string length, not tokens or provider quotas.
+Project memory is only what you write or approve. **Ask … to draft it** has your current AI suggest a brief, but nothing is filled in until you click **Fill brief**, and you can review, edit or undo the result. BridgeAI never summarizes in the background. Selected code retains its captured whitespace, but this is not a byte-for-byte export of original uploaded files. Budgets measure JavaScript string length, not tokens or provider quotas.
 
 ---
 
@@ -98,6 +104,7 @@ Project memory is explicitly edited by the user; this release does not automatic
 
 ```
 bridge-ai/
+├── assets/             # Logo and extension icon
 ├── adapters/           # Platform-specific adapters
 │   ├── ChatGPTAdapter.ts
 │   ├── ClaudeAdapter.ts
@@ -107,10 +114,14 @@ bridge-ai/
 ├── contents/           # Content scripts
 │   └── transfer-ui.tsx
 ├── lib/                # Utilities
+│   ├── briefDraft.ts         # Asks the current AI for a brief, parses the reply
 │   ├── contextEngine.ts      # Builds the handoff prompt
+│   ├── insertText.ts         # Puts the handoff into the destination chat box
+│   ├── loadHistory.ts        # Scrolls up to load older messages
 │   ├── messageText.ts        # Reads chat text, keeps code whitespace
 │   ├── pendingTransfers.ts   # Per-tab pending handoffs (5-minute TTL)
 │   ├── projectMemory.ts
+│   ├── scrape.ts             # Collects messages in page order
 │   └── storage.ts
 ├── tests/              # Unit and Playwright browser checks
 ├── background.ts       # Service worker
