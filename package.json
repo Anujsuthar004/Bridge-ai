@@ -1,7 +1,7 @@
 {
   "name": "bridge-ai",
   "displayName": "BridgeAI",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cross-platform context transfer tool for AI chatbots",
   "author": "Anuj Suthar",
   "scripts": {
