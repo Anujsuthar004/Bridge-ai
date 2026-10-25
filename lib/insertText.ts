@@ -40,10 +40,18 @@ export async function insertIntoInput(input: HTMLElement, text: string): Promise
     data.setData('text/plain', text);
     const before = currentText(target);
     const handled = !target.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
-    // Some editors (Quill) apply a paste on the next tick; give them a moment before falling back.
-    if (handled) await new Promise(resolve => setTimeout(resolve, 150));
+    // Some editors (Quill on the live Gemini site) apply a paste several hundred milliseconds later.
+    // Wait for it before falling back, or the fallback would insert the text a second time.
+    if (handled) await until(() => currentText(target) !== before, 1500);
     if (!handled || currentText(target) === before) document.execCommand('insertText', false, text);
-    return inputHasText(target, text);
+    return until(() => inputHasText(target, text), 1500);
+}
+
+/** Poll `check` until it is true or `timeoutMs` passes; resolves with the last result. */
+async function until(check: () => boolean, timeoutMs: number): Promise<boolean> {
+    for (const end = Date.now() + timeoutMs; !check(); await new Promise(resolve => setTimeout(resolve, 50)))
+        if (Date.now() > end) return false;
+    return true;
 }
 
 /** Resolve with the first non-null result of `find`, re-checking as the page changes. */

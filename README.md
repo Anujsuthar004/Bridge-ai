@@ -150,7 +150,12 @@ npm run typecheck
 # Browser checks against controlled platform fixtures (after building)
 npx playwright install chromium
 npm run test:browser
+
+# Live check against the real Gemini site (runs daily in GitHub Actions)
+npm run test:live
 ```
+
+If BridgeAI can't find the chat box or the messages on a page, it says so in the editor with a **Report a problem** link that opens a prefilled GitHub issue (site, page type and versions only, never chat content).
 
 ---
 
