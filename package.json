@@ -10,7 +10,8 @@
     "package": "plasmo package",
     "test": "tsx --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit",
-    "test:browser": "node tests/browser.mjs"
+    "test:browser": "node tests/browser.mjs",
+    "test:live": "node tests/live.mjs"
   },
   "dependencies": {
     "@plasmohq/storage": "^1.9.3",

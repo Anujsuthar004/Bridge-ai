@@ -33,13 +33,17 @@ const siteCss = '<style>' + [
 ].map(([name, syntax, initial]) => `@property ${name}{syntax:"${syntax}";inherits:false;initial-value:${initial}}`).join('') +
     '@property --tw-gradient-stops{syntax:"*";inherits:false}</style>';
 await context.route('https://**/*', route => {
-    const host = new URL(route.request().url()).hostname;
-    return route.fulfill({contentType: 'text/html', body: `<html><head><title>BridgeAI test fixture</title>${siteCss}</head><body style="background:#eef2f7;padding:40px;font-family:system-ui"><h1>Conversation fixture</h1>${fixtures[host] || ''}</body></html>`});
+    const url = new URL(route.request().url());
+    // A page as it would look after a site redesign: no message markers and no chat box.
+    const content = url.pathname.includes('redesigned') ? '<main><p>Messages BridgeAI cannot recognise</p></main>' : fixtures[url.hostname] || '';
+    return route.fulfill({contentType: 'text/html', body: `<html><head><title>BridgeAI test fixture</title>${siteCss}</head><body style="background:#eef2f7;padding:40px;font-family:system-ui"><h1>Conversation fixture</h1>${content}</body></html>`});
 });
 try {
     const page = await context.newPage();
     await page.goto('https://chatgpt.com/c/bridgeai-test');
     const launcher = page.getByRole('button', { name: 'Transfer · Keep context' });
+    // Self-check: the working fixture is recorded as healthy for live-site checks.
+    await page.waitForSelector('#bridge-ai-root[data-bridgeai-status="ok"][data-bridgeai-chat-box="found"][data-bridgeai-messages="3"]', { state: 'attached' });
     // The launcher must keep its brand background on sites that register Tailwind v4 properties.
     assert.ok((await launcher.evaluate(el => getComputedStyle(el).backgroundImage)).includes('rgb(99, 102, 241)'), 'launcher lost its background');
     await launcher.click();
@@ -178,8 +182,18 @@ try {
     assert.ok((await chat.locator('.ProseMirror').textContent()).startsWith('[BridgeAI brief request]'));
     assert.equal(await chat.locator('textarea[name="prompt-textarea"]').inputValue(), '');
 
+    // A redesigned page is flagged by the self-check and offers a prefilled problem report.
+    const broken = await context.newPage();
+    await broken.goto('https://claude.ai/chat/redesigned');
+    await broken.waitForSelector('#bridge-ai-root[data-bridgeai-status="problem"][data-bridgeai-chat-box="missing"]', { state: 'attached', timeout: 45000 });
+    await broken.getByRole('button', { name: 'Transfer · Keep context' }).click();
+    const report = new URL(await broken.getByRole('link', { name: 'Report a problem' }).getAttribute('href'));
+    assert.equal(report.pathname, '/Anujsuthar004/Bridge-ai/issues/new');
+    assert.equal(report.searchParams.get('title'), 'Claude: Chat box not found');
+    assert.ok(report.searchParams.get('body').includes('No messages found on a conversation page'));
+
     assert.deepEqual(errors, []);
-    console.log('Browser checks passed: actual MV3 extension, editor, full-code pinning, save/reopen/delete, oversize block, mobile layout, targeted transfer with auto-insert, load earlier messages, AI-drafted brief with undo, second-platform memory.');
+    console.log('Browser checks passed: actual MV3 extension, editor, full-code pinning, save/reopen/delete, oversize block, mobile layout, targeted transfer with auto-insert, load earlier messages, AI-drafted brief with undo, second-platform memory, self-check and problem report.');
 } catch (error) {
     for (const [i, page] of context.pages().entries()) await page.screenshot({ path: path.join(artifacts, `failure-${i}.png`) }).catch(() => {});
     throw error;

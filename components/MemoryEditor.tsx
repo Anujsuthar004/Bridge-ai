@@ -26,6 +26,8 @@ interface Props {
     onClose: () => void;
     onLoadEarlier: (signal: AbortSignal) => Promise<string>;
     onRequestDraft: (memory: ProjectMemory) => void;
+    /** Set when BridgeAI's self-check found a problem on this page: a prefilled issue to report it. */
+    reportUrl?: string;
 }
 
 const fields = [
@@ -167,7 +169,7 @@ export function MemoryEditor(props: Props) {
                         <a href={item.sourceUrl} target="_blank" rel="noreferrer">Open source conversation</a><pre>{item.content}</pre>
                         <button className="bridge-btn-ghost" disabled={busy} onClick={() => setMemory(previous => ({ ...previous, pins: previous.pins.filter(pin => pin.id !== item.id) }))}>Unpin</button></details>)}
                     <p className="bridge-help">Pin anything that must survive future switches. Expand a message to check its full text.</p>
-                    {props.rolesGuessed && <p className="bridge-notice" role="status">{sourcePlatform}’s usual message markers weren’t found, so the speaker labels below were guessed. Check them before transferring, and pin anything important.</p>}
+                    {props.rolesGuessed && <p className="bridge-notice" role="status">{sourcePlatform}’s usual message markers weren’t found, so the speaker labels below were guessed. Check them before transferring, and pin anything important.{props.reportUrl && <> <a className="bridge-report" href={props.reportUrl} target="_blank" rel="noreferrer">Report a problem</a></>}</p>}
                     <div className="bridge-actions">
                         {loading ? <button className="bridge-btn-ghost" onClick={() => stopLoading.current?.abort()}>Stop loading</button>
                             : <button className="bridge-btn-ghost" disabled={busy} onClick={loadEarlier}>Load earlier messages</button>}
@@ -181,7 +183,7 @@ export function MemoryEditor(props: Props) {
                             <label className="bridge-pin"><input type="checkbox" checked={pinned} disabled={busy || earlier || brief} onChange={() => pin(message, index)} aria-label={`Pin message ${index + 1}`} />Pin</label>
                             <details><summary>{index + 1} · {message.role} · {earlier ? 'Earlier handoff (memory retained above)' : brief ? 'Brief drafting (kept out of the handoff)' : message.content.slice(0, 95)}</summary><pre>{message.content}</pre></details>
                         </div>;
-                    })}{!messages.length && <p>No messages found on this page. If this chat has messages, {sourcePlatform} may have changed its page layout. You can still use a saved project or write a brief.</p>}</div>
+                    })}{!messages.length && <p>No messages found on this page. If this chat has messages, {sourcePlatform} may have changed its page layout. You can still use a saved project or write a brief.{props.reportUrl && <> <a className="bridge-report" href={props.reportUrl} target="_blank" rel="noreferrer">Report a problem</a></>}</p>}</div>
                     <h3>Review your handoff</h3>
                     <label>Transfer size<select aria-label="Transfer size" value={budget} disabled={busy} onChange={event => setBudget(Number(event.target.value))}>
                         <option value={12000}>Compact · 12,000 characters</option><option value={24000}>Balanced · 24,000 characters</option><option value={60000}>Extended · 60,000 characters</option>

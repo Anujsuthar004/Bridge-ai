@@ -9,6 +9,7 @@ import { findScrollContainer, loadEarlierMessages } from '~lib/loadHistory';
 import { listProjects, saveProject, deleteProject } from '~lib/storage';
 import type { ProjectMemory } from '~lib/projectMemory';
 import type { ScrapeResult } from '~lib/scrape';
+import { isConversationPage, problemsFor, publishHealth, reportUrl, type PageHealth } from '~lib/selfCheck';
 
 export const config: PlasmoCSConfig = {
     matches: ['https://chat.openai.com/*', 'https://chatgpt.com/*', 'https://claude.ai/*', 'https://gemini.google.com/*'],
@@ -18,6 +19,20 @@ export const getStyle: PlasmoGetStyle = () => { const style = document.createEle
 export const getShadowHostId: PlasmoGetShadowHostId = () => 'bridge-ai-root';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+function pageHealth(adapter: AIAdapter, scrape = adapter.scrapeMessages()): PageHealth {
+    return { chatBox: !!adapter.getInputElement(), messages: scrape.messages.length, rolesGuessed: scrape.rolesGuessed,
+        conversation: isConversationPage(adapter.platformId, location.pathname) };
+}
+
+function reportLink(adapter: AIAdapter, health: PageHealth, extra: string[] = []): string {
+    return reportUrl({ platformName: adapter.platformName, problems: [...extra, ...problemsFor(health)], conversation: health.conversation,
+        version: chrome.runtime.getManifest().version, userAgent: navigator.userAgent });
+}
+
+function ReportLink({ href }: { href: string }) {
+    return <a className="bridge-report" href={href} target="_blank" rel="noreferrer">Report a problem</a>;
+}
 
 /** Put text in the chat box. Returns null on success, or why it failed, in words for the user. */
 async function tryInsert(adapter: AIAdapter, text: string): Promise<string | null> {
@@ -38,6 +53,8 @@ function TransferUI() {
     const [inserted, setInserted] = useState(false);
     const [arrivalStatus, setArrivalStatus] = useState('');
     const [error, setError] = useState('');
+    // Why inserting failed, for the problem report.
+    const [insertProblem, setInsertProblem] = useState('');
     const [initialProjectId, setInitialProjectId] = useState<string>();
     // Memory set aside while the current AI drafts a brief, and whether to fill it on reopening.
     const [draft, setDraft] = useState<ProjectMemory | null>(null);
@@ -57,6 +74,27 @@ function TransferUI() {
         }).catch(() => setError('BridgeAI could not load the incoming transfer. Reload this tab to retry.'));
     }, []);
 
+    // Self-check: once the page settles, record whether BridgeAI can find the chat box and messages.
+    // Single-page sites change conversations without reloading, so check again when the URL changes.
+    useEffect(() => {
+        if (!adapter) return;
+        let cancelled = false;
+        let checkedHref = '';
+        const check = async () => {
+            checkedHref = location.href;
+            await waitForElement(() => adapter.getInputElement());
+            if (isConversationPage(adapter.platformId, location.pathname))
+                await waitForElement(() => adapter.scrapeMessages().messages.length ? true : null);
+            if (cancelled || checkedHref !== location.href) return;
+            const health = pageHealth(adapter);
+            publishHealth(document.getElementById('bridge-ai-root'), health);
+            if (problemsFor(health).length) console.warn('[BridgeAI] self-check:', problemsFor(health).join('; '));
+        };
+        check();
+        const timer = setInterval(() => { if (location.href !== checkedHref) check(); }, 2000);
+        return () => { cancelled = true; clearInterval(timer); };
+    }, [adapter]);
+
     const insertPending = async () => {
         if (!adapter || !pending) return;
         const text = pending.formattedPrompt;
@@ -70,6 +108,7 @@ function TransferUI() {
         }
         if (!ok) {
             console.warn('[BridgeAI] insert failed:', input ? input.outerHTML.slice(0, 300) : '(no element)');
+            setInsertProblem(input ? 'Chat box didn’t accept the text' : 'Chat box not found');
             setArrivalStatus('BridgeAI couldn’t insert the context automatically (the chat box didn’t accept the text). Use Copy context and paste it.');
             return;
         }
@@ -85,7 +124,7 @@ function TransferUI() {
         let cancelled = false;
         waitForElement(() => adapter.getInputElement()).then(input => {
             if (cancelled) return;
-            if (!input) setArrivalStatus('BridgeAI couldn’t find the chat box. Use Copy context and paste it.');
+            if (!input) { setInsertProblem('Chat box not found'); setArrivalStatus('BridgeAI couldn’t find the chat box. Use Copy context and paste it.'); }
             else if (!isInputEmpty(input)) setArrivalStatus('The chat box already has text, so nothing was inserted. Use Insert into chat or Copy context.');
             else insertPending();
         });
@@ -129,6 +168,8 @@ function TransferUI() {
         setPasteOpen(false); setPastedReply('');
         const request = buildBriefRequest();
         const failure = await tryInsert(adapter, request);
+        // A chat box that already has text is the user's to clear, not a site problem.
+        setInsertProblem(failure && failure !== 'the chat box already has text' ? failure : '');
         if (!failure) {
             setDraftStatus(`The brief request is in the chat box. Send it, wait for ${adapter.platformName} to finish replying, then click Fill brief.`);
             return;
@@ -179,6 +220,7 @@ function TransferUI() {
                     ? <button className="bridge-btn" onClick={fillFromPasted}>Fill from pasted reply</button>
                     : <button className="bridge-btn" onClick={fillBrief}>Fill brief</button>}
                 <button className="bridge-btn-ghost" onClick={() => openEditor()}>Back to editor</button></div>
+            {insertProblem && <ReportLink href={reportLink(adapter, pageHealth(adapter), [insertProblem])} />}
         </section>}
         {pending && !snapshot && !draft && <section className="bridge-arrival" aria-label="Incoming project context">
             <strong>{inserted ? 'Your project context is in the chat box' : 'Your project context is ready'}</strong>
@@ -192,9 +234,11 @@ function TransferUI() {
                     try { await chrome.runtime.sendMessage({ type: 'CLEAR_PENDING_CONTEXT', id: pending.id }); setPending(null); }
                     catch { setArrivalStatus('Could not dismiss the transfer. Try again.'); }
                 }}>Dismiss</button></div><p role="status">{arrivalStatus}</p>
+            {insertProblem && !inserted && <ReportLink href={reportLink(adapter, pageHealth(adapter), [insertProblem])} />}
         </section>}
         {snapshot && <MemoryEditor messages={snapshot.scrape.messages} rolesGuessed={snapshot.scrape.rolesGuessed}
             sourcePlatform={adapter.platformName} sourceUrl={snapshot.url}
+            reportUrl={(health => problemsFor(health).length ? reportLink(adapter, health) : undefined)(pageHealth(adapter, snapshot.scrape))}
             platformId={adapter.platformId} projects={projects} initialProjectId={initialProjectId}
             initialMemory={draft ?? undefined} fillFromBrief={fillOnOpen} briefText={fillOnOpen && pastedReply.trim() ? pastedReply : undefined}
             onClose={closeEditor}
