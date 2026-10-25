@@ -4,11 +4,11 @@ import cssText from 'data-text:~style.css';
 import { getActiveAdapter, type AIAdapter, type ContextPayload } from '~adapters';
 import { MemoryEditor } from '~components/MemoryEditor';
 import { buildBriefRequest, findBriefReply, hasReplyAfterRequest, isBriefReply, isBriefRequest } from '~lib/briefDraft';
-import { inputHasText, insertIntoInput, isInputEmpty, waitForElement } from '~lib/insertText';
+import { inputHasText, insertIntoInput, isInputEmpty, isUsableInput, waitForElement } from '~lib/insertText';
 import { findScrollContainer, loadEarlierMessages } from '~lib/loadHistory';
 import { listProjects, saveProject, deleteProject } from '~lib/storage';
 import type { ProjectMemory } from '~lib/projectMemory';
-import type { ScrapeResult } from '~lib/scrape';
+import { mergeScrapes, type ScrapeResult } from '~lib/scrape';
 import { isConversationPage, problemsFor, publishHealth, reportUrl, type PageHealth } from '~lib/selfCheck';
 
 export const config: PlasmoCSConfig = {
@@ -19,6 +19,12 @@ export const getStyle: PlasmoGetStyle = () => { const style = document.createEle
 export const getShadowHostId: PlasmoGetShadowHostId = () => 'bridge-ai-root';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Wait for a chat box the user could type in; after the timeout, settle for whatever matches. */
+async function waitForUsableInput(adapter: AIAdapter): Promise<HTMLElement | null> {
+    return await waitForElement(() => { const input = adapter.getInputElement(); return input && isUsableInput(input) ? input : null; })
+        ?? adapter.getInputElement();
+}
 
 function pageHealth(adapter: AIAdapter, scrape = adapter.scrapeMessages()): PageHealth {
     return { chatBox: !!adapter.getInputElement(), messages: scrape.messages.length, rolesGuessed: scrape.rolesGuessed,
@@ -82,7 +88,7 @@ function TransferUI() {
         let checkedHref = '';
         const check = async () => {
             checkedHref = location.href;
-            await waitForElement(() => adapter.getInputElement());
+            await waitForUsableInput(adapter);
             if (isConversationPage(adapter.platformId, location.pathname))
                 await waitForElement(() => adapter.scrapeMessages().messages.length ? true : null);
             if (cancelled || checkedHref !== location.href) return;
@@ -122,7 +128,7 @@ function TransferUI() {
     useEffect(() => {
         if (!adapter || !pending) return;
         let cancelled = false;
-        waitForElement(() => adapter.getInputElement()).then(input => {
+        waitForUsableInput(adapter).then(input => {
             if (cancelled) return;
             if (!input) { setInsertProblem('Chat box not found'); setArrivalStatus('BridgeAI couldn’t find the chat box. Use Copy context and paste it.'); }
             else if (!isInputEmpty(input)) setArrivalStatus('The chat box already has text, so nothing was inserted. Use Insert into chat or Copy context.');
@@ -150,8 +156,11 @@ function TransferUI() {
         if (!adapter) return '';
         const before = adapter.scrapeMessages();
         const scroller = findScrollContainer(before.firstElement);
-        const result = await loadEarlierMessages(scroller, () => adapter.scrapeMessages().messages.length, { signal });
-        const after = adapter.scrapeMessages();
+        // Collect every round, since a virtualized chat can unload messages as older ones load.
+        let collected = before;
+        const progress = () => { const { messages } = adapter.scrapeMessages(); return `${messages.length}|${messages[0]?.role}|${messages[0]?.content.slice(0, 200)}`; };
+        const result = await loadEarlierMessages(scroller, progress, { signal, onRound: () => { collected = mergeScrapes(adapter.scrapeMessages(), collected); } });
+        const after = mergeScrapes(adapter.scrapeMessages(), collected);
         scroller.scrollTop = scroller.scrollHeight;
         setSnapshot(previous => previous && { ...previous, scrape: after });
         const added = after.messages.length - before.messages.length;

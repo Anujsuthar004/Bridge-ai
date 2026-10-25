@@ -23,7 +23,8 @@ export class ClaudeAdapter implements AIAdapter {
             'textarea',
         ],
         // Broader fallback selectors
-        conversationTurn: '[data-testid^="chat-message"], .group\\/turn, [class*="turn"], [class*="message"]',
+        // Specific turn markers only: class substrings like "message" also match whole conversation containers.
+        conversationTurn: '[data-testid^="chat-message"], .group\\/turn',
         fallbackMessages: '.prose, .whitespace-pre-wrap, [class*="MessageContent"]',
     };
 

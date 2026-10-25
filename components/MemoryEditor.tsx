@@ -60,7 +60,9 @@ export function MemoryEditor(props: Props) {
     const briefReply = useMemo(() => props.briefText ?? findBriefReply(messages)?.content, [messages, props.briefText]);
     const dirty = JSON.stringify(memory) !== savedSnapshot;
     const meaningful = !!(memory.originalRequest || memory.pins.length || fields.some(([key]) => memory[key].trim()));
-    const canTransfer = meaningful && !!memory.name.trim() && !result.overBudget && !busy && !loading;
+    // Guessed speakers could attribute an AI reply to the user, so the user confirms they checked them.
+    const [speakersChecked, setSpeakersChecked] = useState(false);
+    const canTransfer = meaningful && !!memory.name.trim() && !result.overBudget && !busy && !loading && (!props.rolesGuessed || speakersChecked);
     const patch = (key: string, value: string) => { setMemory(previous => ({ ...previous, [key]: value })); setStatus(''); setBeforeFill(null); };
     const close = () => { if (!busy && !loading && (!dirty || window.confirm('Discard unsaved project memory changes?'))) onClose(); };
 
@@ -169,7 +171,8 @@ export function MemoryEditor(props: Props) {
                         <a href={item.sourceUrl} target="_blank" rel="noreferrer">Open source conversation</a><pre>{item.content}</pre>
                         <button className="bridge-btn-ghost" disabled={busy} onClick={() => setMemory(previous => ({ ...previous, pins: previous.pins.filter(pin => pin.id !== item.id) }))}>Unpin</button></details>)}
                     <p className="bridge-help">Pin anything that must survive future switches. Expand a message to check its full text.</p>
-                    {props.rolesGuessed && <p className="bridge-notice" role="status">{sourcePlatform}’s usual message markers weren’t found, so the speaker labels below were guessed. Check them before transferring, and pin anything important.{props.reportUrl && <> <a className="bridge-report" href={props.reportUrl} target="_blank" rel="noreferrer">Report a problem</a></>}</p>}
+                    {props.rolesGuessed && <p className="bridge-notice" role="status">{sourcePlatform}’s usual message markers weren’t found, so the speaker labels below were guessed. Check them before transferring, and pin anything important.{props.reportUrl && <> <a className="bridge-report" href={props.reportUrl} target="_blank" rel="noreferrer">Report a problem</a></>}
+                        <label className="bridge-pin"><input type="checkbox" checked={speakersChecked} onChange={event => setSpeakersChecked(event.target.checked)} />I checked the speaker labels</label></p>}
                     <div className="bridge-actions">
                         {loading ? <button className="bridge-btn-ghost" onClick={() => stopLoading.current?.abort()}>Stop loading</button>
                             : <button className="bridge-btn-ghost" disabled={busy} onClick={loadEarlier}>Load earlier messages</button>}

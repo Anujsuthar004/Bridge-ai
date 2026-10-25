@@ -1,3 +1,10 @@
+// Text the user can't see (display:none, visibility:hidden, the hidden attribute) must not be transferred.
+function isHidden(el: Element): boolean {
+    if (el.hasAttribute('hidden')) return true;
+    const style = el.ownerDocument.defaultView?.getComputedStyle(el);
+    return style?.display === 'none' || style?.visibility === 'hidden';
+}
+
 /** Preserve paragraph boundaries and exact code whitespace when reading rendered chat. */
 export function readMessageText(element: Element): string {
     const read = (node: Node): string => {
@@ -5,7 +12,7 @@ export function readMessageText(element: Element): string {
         if (node.nodeType !== 1) return '';
         const el = node as Element;
         const tag = el.tagName.toLowerCase();
-        if (['button', 'script', 'style', 'svg'].includes(tag) || el.getAttribute('aria-hidden') === 'true') return '';
+        if (['button', 'script', 'style', 'svg'].includes(tag) || el.getAttribute('aria-hidden') === 'true' || isHidden(el)) return '';
         if (tag === 'br') return '\n';
         if (tag === 'pre') {
             const code = el.querySelector('code') || el;

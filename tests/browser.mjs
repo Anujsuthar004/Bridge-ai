@@ -24,6 +24,11 @@ const fixtures = {
         '<script>document.querySelector("[data-testid=prompt-input]").addEventListener("paste", event => { event.preventDefault(); const text = event.clipboardData.getData("text/plain"); setTimeout(() => document.execCommand("insertText", false, text), 0); });</script>',
     'gemini.google.com': '<user-query>Continue my portfolio</user-query><model-response>The form is tested.</model-response><div class="ql-editor" contenteditable="true"></div>',
 };
+// A new Claude chat as it loads: only a hidden placeholder at first, the real composer 2.5 seconds later.
+const slowClaude = '<textarea style="display:none"></textarea><script>setTimeout(() => {' +
+    'document.body.insertAdjacentHTML("beforeend", \'<div contenteditable="true" data-testid="prompt-input"></div>\');' +
+    'document.querySelector("[data-testid=prompt-input]").addEventListener("paste", event => { event.preventDefault(); const text = event.clipboardData.getData("text/plain"); setTimeout(() => document.execCommand("insertText", false, text), 0); });' +
+    '}, 2500);</script>';
 // ChatGPT and Claude are built with Tailwind v4, which registers these custom properties for the
 // whole document. Registrations cross shadow DOM, so they must not break BridgeAI's own styles.
 const siteCss = '<style>' + [
@@ -35,7 +40,9 @@ const siteCss = '<style>' + [
 await context.route('https://**/*', route => {
     const url = new URL(route.request().url());
     // A page as it would look after a site redesign: no message markers and no chat box.
-    const content = url.pathname.includes('redesigned') ? '<main><p>Messages BridgeAI cannot recognise</p></main>' : fixtures[url.hostname] || '';
+    const content = url.pathname.includes('redesigned') ? '<main><p>Messages BridgeAI cannot recognise</p></main>'
+        : url.pathname.includes('guessed') ? '<div class="prose">A long enough first message</div><div class="prose">A long enough second message</div><div contenteditable="true" data-testid="prompt-input"></div>'
+        : url.hostname === 'claude.ai' && url.pathname === '/' ? slowClaude : fixtures[url.hostname] || '';
     return route.fulfill({contentType: 'text/html', body: `<html><head><title>BridgeAI test fixture</title>${siteCss}</head><body style="background:#eef2f7;padding:40px;font-family:system-ui"><h1>Conversation fixture</h1>${content}</body></html>`});
 });
 try {
@@ -83,6 +90,8 @@ try {
     // The context is inserted into the destination's chat box automatically, and never sent.
     await destination.getByText('Inserted into the chat box. Review it, then press send.', { exact: true }).waitFor();
     const composer = await destination.locator('[data-testid="prompt-input"]').textContent();
+    // The hidden placeholder that loaded first must stay empty: the text waited for the real composer.
+    assert.equal(await destination.locator('textarea').inputValue(), '');
     assert.ok(composer.replace(/\s+/g, '').includes(code.replace(/\s+/g, '')));
     assert.ok(composer.includes('Use Supabase; Firebase was rejected.'));
 
@@ -182,6 +191,17 @@ try {
     assert.ok((await chat.locator('.ProseMirror').textContent()).startsWith('[BridgeAI brief request]'));
     assert.equal(await chat.locator('textarea[name="prompt-textarea"]').inputValue(), '');
 
+    // Guessed speakers must be confirmed before transferring.
+    const guessed = await context.newPage();
+    await guessed.goto('https://claude.ai/chat/guessed');
+    await guessed.getByRole('button', { name: 'Transfer · Keep context' }).click();
+    await guessed.getByLabel('Project name', { exact: true }).fill('Guessed');
+    await guessed.getByLabel('Goal', { exact: true }).fill('Check speakers');
+    const toChatGPT = guessed.getByRole('button', { name: 'Continue in ChatGPT', exact: true });
+    assert.equal(await toChatGPT.isDisabled(), true);
+    await guessed.getByLabel('I checked the speaker labels').check();
+    assert.equal(await toChatGPT.isDisabled(), false);
+
     // A redesigned page is flagged by the self-check and offers a prefilled problem report.
     const broken = await context.newPage();
     await broken.goto('https://claude.ai/chat/redesigned');
@@ -193,7 +213,7 @@ try {
     assert.ok(report.searchParams.get('body').includes('No messages found on a conversation page'));
 
     assert.deepEqual(errors, []);
-    console.log('Browser checks passed: actual MV3 extension, editor, full-code pinning, save/reopen/delete, oversize block, mobile layout, targeted transfer with auto-insert, load earlier messages, AI-drafted brief with undo, second-platform memory, self-check and problem report.');
+    console.log('Browser checks passed: actual MV3 extension, editor, full-code pinning, save/reopen/delete, oversize block, mobile layout, targeted transfer with auto-insert, load earlier messages, AI-drafted brief with undo, second-platform memory, self-check and problem report, waiting for a slow composer, confirming guessed speakers.');
 } catch (error) {
     for (const [i, page] of context.pages().entries()) await page.screenshot({ path: path.join(artifacts, `failure-${i}.png`) }).catch(() => {});
     throw error;

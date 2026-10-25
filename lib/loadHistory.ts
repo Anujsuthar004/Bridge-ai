@@ -12,6 +12,8 @@ export interface LoadHistoryOptions {
     wait?: (ms: number) => Promise<void>;
     settleMs?: number;
     maxRounds?: number;
+    /** Called after every scroll, so a caller can collect messages a virtualized list is about to drop. */
+    onRound?: () => void;
 }
 
 export interface LoadHistoryResult {
@@ -23,17 +25,20 @@ export interface LoadHistoryResult {
 /**
  * Scroll to the top repeatedly so the platform lazy-loads older messages. Stops once
  * two scrolls in a row change nothing, the round limit is reached, or the user cancels.
+ * `progress` describes what is on screen (for example the count and first message): a virtualized
+ * list can swap messages while keeping the count and height, so comparing counts alone is not enough.
  */
-export async function loadEarlierMessages(scroller: { scrollTop: number; scrollHeight: number }, count: () => number,
-    { signal, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), settleMs = 900, maxRounds = 40 }: LoadHistoryOptions = {},
+export async function loadEarlierMessages(scroller: { scrollTop: number; scrollHeight: number }, progress: () => string | number,
+    { signal, wait = ms => new Promise(resolve => setTimeout(resolve, ms)), settleMs = 900, maxRounds = 40, onRound }: LoadHistoryOptions = {},
 ): Promise<LoadHistoryResult> {
     let unchanged = 0;
     for (let round = 0; round < maxRounds; round++) {
         if (signal?.aborted) return { complete: false, stopped: true };
-        const before = { count: count(), height: scroller.scrollHeight };
+        const before = { progress: progress(), height: scroller.scrollHeight };
         scroller.scrollTop = 0;
         await wait(settleMs);
-        if (count() === before.count && scroller.scrollHeight === before.height) {
+        onRound?.();
+        if (progress() === before.progress && scroller.scrollHeight === before.height) {
             if (++unchanged >= 2) return { complete: true, stopped: false };
         } else unchanged = 0;
     }
