@@ -18,11 +18,9 @@ export function isInputEmpty(input: HTMLElement): boolean {
     return !currentText(resolveEditable(input)).trim();
 }
 
-/** True when the input holds the start and end of `text`. */
+/** True when the input holds all of `text`, ignoring only whitespace (which editors reshape into paragraphs). */
 export function inputHasText(input: HTMLElement, text: string): boolean {
-    const have = squash(currentText(resolveEditable(input)));
-    const want = squash(text);
-    return have.includes(want.slice(0, 60)) && have.includes(want.slice(-60));
+    return squash(currentText(resolveEditable(input))).includes(squash(text));
 }
 
 export async function insertIntoInput(input: HTMLElement, text: string): Promise<boolean> {
@@ -64,11 +62,23 @@ export function waitForElement<T>(find: () => T | null, timeoutMs = 15000): Prom
             if (match) { observer.disconnect(); clearTimeout(timer); resolve(match); }
         });
         const timer = setTimeout(() => { observer.disconnect(); resolve(null); }, timeoutMs);
-        observer.observe(document.body, { childList: true, subtree: true });
+        // Attribute changes too: a composer can become visible or enabled without new elements appearing.
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'disabled'] });
     });
 }
 
 const isVisible = (el: HTMLElement) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+
+/**
+ * A chat box the user could type in right now: visible, editable and enabled. While a page loads,
+ * the only match can be a hidden placeholder, and inserting there would be lost.
+ */
+export function isUsableInput(input: HTMLElement): boolean {
+    const target = resolveEditable(input);
+    if (!isVisible(target)) return false;
+    if (isTextField(target)) return !target.disabled && !target.readOnly;
+    return target.isContentEditable || target.getAttribute('contenteditable') === 'true';
+}
 
 /**
  * The chat input: the first selector, in priority order, with a visible match. Sites keep a hidden
